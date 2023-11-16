@@ -1,0 +1,35 @@
+#BaseRecalibrator------------------------------------------------------------------
+#download known indels
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi
+
+#Add read groups
+picard AddOrReplaceReadGroups \
+    I=/data/project/RCC_HWS/SS/bulk/STAR/outs/KYE/KYESplit.bam \
+    O=/data/project/RCC_HWS/SS/bulk/STAR/outs/KYE/KYEAdded.bam \
+    RGID=5 \
+    RGLB=lib1 \
+    RGPL=illumina \
+    RGPU=unit1 \
+    RGSM=CSB
+
+samtools view -H /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBAdded.bam | grep '^@RG'
+
+gatk IndexFeatureFile \
+    -F /home/songnsnow/download/STAR_run/reference/Mills_and_1000G_gold_standard.indels.hg38.vcf
+
+gatk --java-options "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -XX:+PrintFlagsFinal \
+            -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintGCDetails \
+            -Xloggc:gc_log.log -Xms4000m" \
+    BaseRecalibrator \
+    -R /home/songnsnow/download/STAR_run/reference/Homo_sapiens_assembly38.fasta \
+    -I /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBAdded.bam \
+    --use-original-qualities \
+    -known-sites /home/songnsnow/download/STAR_run/reference/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -known-sites /home/songnsnow/download/STAR_run/reference/Mills_and_1000G_gold_standard.indels.hg38.vcf \
+    -O /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBRecal.table
+#----------------------------------------------------------------------------------

@@ -1,0 +1,11 @@
+#ApplyBQSR-------------------------------------------------------------------------
+ gatk --java-options "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
+            -XX:+PrintGCDetails -Xloggc:gc_log.log \
+            -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Xms3000m" \
+    ApplyBQSR \
+    --add-output-sam-program-record \
+    -R /home/songnsnow/download/STAR_run/reference/Homo_sapiens_assembly38.fasta \
+    -I /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBAdded.bam \
+    -O /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBbqsr.bam \
+    --bqsr-recal-file /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBRecal.table
+#----------------------------------------------------------------------------------
