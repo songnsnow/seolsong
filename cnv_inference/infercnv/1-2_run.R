@@ -1,9 +1,11 @@
+# command line ----------------------------------------------------------------------------------------------------
+ulimit -s unlimited 
+
+
 # load library ----------------------------------------------------------------------------------------------------
 library(infercnv)
 library(Seurat)
 
-# command line ----------------------------------------------------------------------------------------------------
-ulimit -s unlimited 
 
 # create infercnv obj ---------------------------------------------------------------------------------------------
 infercnv_obj = CreateInfercnvObject(raw_counts_matrix = counts_matrix,
@@ -11,6 +13,7 @@ infercnv_obj = CreateInfercnvObject(raw_counts_matrix = counts_matrix,
                                     delim = "\t",
                                     gene_order_file = "/PATH/inferCNV/hg38_gencode_v27.txt",
                                     ref_group_names = c('ann1','ann2','ann3','ann4')) # error if datasets with different normalization assays are merged
+
 
 # run inferCNV ----------------------------------------------------------------------------------------------------
 infercnv_obj = infercnv::run(infercnv_obj,
