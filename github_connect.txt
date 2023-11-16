@@ -1,3 +1,4 @@
+# make new repository -> connect to local
 echo "# seolsong" >> README.md
 git init
 git add README.md
@@ -6,7 +7,11 @@ git branch -M main
 git remote add origin git@github.com:songnsnow/seolsong.git
 git push -u origin main
 
+# upload new files to repository
 git add .
 git status
 git commit -m "second test"
 git push origin main
+
+# download new files from repository
+git 
