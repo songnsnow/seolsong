@@ -1,0 +1,58 @@
+# load libraries
+library(Seurat)
+library(Matrix)
+library(fields)
+library(KernSmooth)
+library(ROCR)
+library(parallel)
+library(remotes)
+library(DoubletFinder)
+library(ggplot2)
+
+# load data (SeuratObject)
+dt <- readRDS('/PATH/.rds')
+
+
+## Pre-process Seurat object (standard) --------------------------------------------------------------------------------------
+dt <- NormalizeData(dt)
+dt <- FindVariableFeatures(dt, selection.method = "vst", nfeatures = 2000)
+dt.genes<-row.names(dt)
+dt <- ScaleData(dt, features=dt.genes)
+dt <- RunPCA(dt)
+dt <- RunUMAP(dt, dims = 1:10)
+dt <- FindNeighbors(dt, reduction = 'pca', dims = 1:10)
+dt <- FindClusters(dt, resolution = 0.5)
+
+DimPlot(dt, reduction = "umap", group.by='ident')
+ggsave('/PATH/.png')
+
+saveRDS(dt, '/PATH/.rds')
+
+
+## pK Identification (no ground-truth) ---------------------------------------------------------------------------------------
+sweep.res.dt <- paramSweep_v3(dt, PCs = 1:10, sct = FALSE)
+sweep.stats_dt <- summarizeSweep(sweep.res.dt, GT = FALSE)
+bcmvn_dt <- find.pK(sweep.stats_dt)
+
+pk <- bcmvn_dt
+pk2 <- pk[order(pk$BCmetric),] 
+pk2     # print & check pk with highest BCmetrix(y) value = highest_pK
+
+
+## Homotypic Doublet Proportion Estimate -------------------------------------------------------------------------------------
+homotypic.prop <- modelHomotypic(dt@meta.data$seurat_clusters)           ## ex: annotations <- seu_kidney@meta.data$ClusteringResults
+nExp_poi <- round(doublet_rate*nrow(dt@meta.data))  ## doubletrate = assume ??(decimals) doublet formation rate - based on number of cells     #https://kb.10xgenomics.com/hc/en-us/articles/360059124751-Why-is-the-multiplet-rate-different-for-the-Next-GEM-Single-Cell-3-LT-v3-1-assay-compared-to-other-single-cell-applications-
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+## Run DoubletFinder with varying classification stringencies ----------------------------------------------------------------
+dt_df <- doubletFinder_v3(dt, PCs = 1:10, pN = 0.25, pK = highest_pK, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+dt_df <- doubletFinder_v3(dt_df, PCs = 1:10, pN = 0.25, pK = highest_pK, nExp = nExp_poi.adj, reuse.pANN = "previous_pANN_colname", sct = FALSE)
+
+# Plot doublets on UMAP
+DimPlot(dt_df, reduction = "umap", group.by='DF_classifications_colname', label=TRUE)
+ggsave('/PATH/doubletFinder_labeled_umap.png',width=5, height=5,scale=1)
+
+# remove doublets
+dt <- SetIdent(dt, value = dt@meta.data$DF_classifications_colname)
+dt <- subset(dt, idents = c('Doublet'), invert=TRUE) #20181 cells
+
+saveRDS(dt_df, '/PATH/.rds')

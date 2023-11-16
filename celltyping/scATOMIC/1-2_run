@@ -1,0 +1,62 @@
+# load libraries --------------------------------------------------------------------------------------------------------
+library(scATOMIC)
+library(plyr)
+library(dplyr)
+library(data.table)
+library(randomForest)
+library(caret)
+library(parallel)
+library(reticulate)
+library(Rmagic)
+library(Matrix)
+library(Seurat)
+library(agrmt)
+library(cutoff.scATOMIC)
+library(copykat)
+library(ggplot2)
+
+# input data -------------------------------------------------------------------------------------------------------------
+#where input_matrix is any non sparse count matrix
+sparse_matrix <- as(as.matrix(input_matrix), "sparseMatrix")
+#where seurat_object is any scRNA-seq Seurat object
+sparse_matrix <- seurat_object@assays$RNA@counts
+
+
+# preprocess dataset --------------------------------------------------------------------------------------------------------
+pct_mt <- colSums(lung_cancer_demo_data[grep("^MT-", row.names(lung_cancer_demo_data)),])/colSums(lung_cancer_demo_data) * 100
+nFeatureRNA <- colSums(lung_cancer_demo_data > 0)
+lung_cancer_demo_data <- lung_cancer_demo_data[, names(which(pct_mt < 25))]
+lung_cancer_demo_data <- lung_cancer_demo_data[, intersect(names(which(nFeatureRNA > 500)), colnames(lung_cancer_demo_data))]
+
+
+# run scATOMIC ----------------------------------------------------------------------------------------------------------------
+cell_predictions <- run_scATOMIC(lung_cancer_demo_data)
+
+results_lung <- create_summary_matrix(prediction_list = cell_predictions, use_CNVs = F, modify_results = T, mc.cores = 1, raw_counts = lung_cancer_demo_data, min_prop = 0.5 )
+table(results_lung$scATOMIC_pred)
+head(results_lung)
+
+# SCATOMIC CNV mode ----------------------------------------------------------------------------------------------------------
+results_lung_CNV <- create_summary_matrix(prediction_list = cell_predictions, use_CNVs = T, modify_results = T, mc.cores = 6, raw_counts = lung_cancer_demo_data, min_prop = 0.5 )
+
+# visualize results ---------------------------------------------------------------------------------------------------------
+tree_results_lung <- scATOMICTree(predictions_list = cell_predictions, summary_matrix = results_lung, 
+                                  interactive_mode = T, collapsed = T, save_results = F,height = 700, width = 1000)
+
+
+# adding results to seurat object -----------------------------------------------------------------------------------------
+#create seurat object
+lung_seurat <- CreateSeuratObject(lung_cancer_demo_data, meta.data = results_lung)
+#run seurat pipeline
+lung_seurat <- NormalizeData(lung_seurat)
+lung_seurat <- FindVariableFeatures(lung_seurat)
+lung_seurat <- ScaleData(lung_seurat)
+lung_seurat <- RunPCA(lung_seurat, features = VariableFeatures(object = lung_seurat))
+lung_seurat <- RunUMAP(lung_seurat, dims = 1:50)
+lung_seurat <- FindNeighbors(lung_seurat)
+lung_seurat <- FindClusters(lung_seurat)
+
+# if already have seurat object
+lung_seurat <- AddMetaData(lung_seurat, results_lung)
+
+DimPlot(lung_seurat, group.by = "scATOMIC_pred") + ggtitle("Lung Demo Dataset") + labs(fill="scATOMIC Annotations") 

@@ -1,0 +1,71 @@
+library(data.table)
+library(Seurat)
+library(ktools)
+
+args = commandArgs(trailingOnly=TRUE)
+Seurat_dir <- args[1]
+outdir <- args[2]
+print(Seurat_dir)
+Seurat <- readRDS(file="'/PATH/SeuratObject.rds")
+rows <- nrow(Seurat)
+cols <- ncol(Seurat)
+cuts <- round(seq(1,rows, by = rows/7))
+
+setwd('/PATH/output_dir')
+print('loading seurats')
+Seu1 <- Seurat[cuts[1]:(cuts[2]-1),]
+Seu2 <- Seurat[cuts[2]:(cuts[3]-1),]
+Seu3 <- Seurat[cuts[3]:(cuts[4]-1),]
+Seu4 <- Seurat[cuts[4]:(cuts[5]-1),]
+Seu5 <- Seurat[cuts[5]:(cuts[6]-1),]
+Seu6 <- Seurat[cuts[6]:(cuts[7]-1),]
+Seu7 <- Seurat[cuts[7]:rows,]
+
+#1
+print("Step 1/7")
+count_norm1 <- as.data.frame(Seu1[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu1[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv', row.names=TRUE, col.names=TRUE, quote=FALSE, nThread=10)
+#2
+print("Step 2/7")
+count_norm1 <- as.data.frame(Seu2[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu2[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#3
+print("Step 3/7")
+count_norm1 <- as.data.frame(Seu3[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu3[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#4
+print("Step 4/7")
+count_norm1 <- as.data.frame(Seu4[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu4[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#5
+print("Step 5/7")
+count_norm1 <- as.data.frame(Seu5[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu5[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#6
+print("Step 6/7")
+count_norm1 <- as.data.frame(Seu6[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu6[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#7
+print("Step 7/7")
+count_norm1 <- as.data.frame(Seu7[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu7[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+
+
+# cluster <- as.data.frame(Seurat$seurat_clusters)
+# fwrite(cluster, file="cluster_result.csv", row.names=FALSE, col.names=FALSE,quote=FALSE, nThread=20)
+
+print("Done")

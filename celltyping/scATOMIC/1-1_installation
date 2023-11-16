@@ -1,0 +1,25 @@
+# installation ----------------------------------------------------------------------------------------------------------
+conda install -c conda-forge r-base=4.3.1
+conda install -c conda-forge r-devtools
+
+options(repos="https://CRAN.R-project.org")
+devtools::install_version("dlm", version = "1.1.5")
+devtools::install_version("Rmagic", version = "2.0.3", repos = "http://cran.us.r-project.org")
+# if(!require(devtools)) install.packages("devtools")
+if(!require(cutoff.scATOMIC)) devtools::install_github("inofechm/cutoff.scATOMIC", force = T)
+if(!require(scATOMIC)) devtools::install_github("abelson-lab/scATOMIC")
+
+# if installation fail due to timeout
+options(timeout=9999999)
+devtools::install_github("abelson-lab/scATOMIC")
+
+if(!require(Rmagic)) devtools::install_version("Rmagic", version = "2.0.3", repos = "http://cran.us.r-project.org")
+
+pip install --user magic-impute
+
+Rmagic::pymagic_is_available()
+
+library(reticulate)
+library(Rmagic)
+install.magic()
+pymagic_is_available()

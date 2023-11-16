@@ -1,0 +1,7 @@
+# installation ----------------------------------------------------------------------------------------------------------------
+# install.packages(c('numbat'), dependencies = TRUE)  # doesn't work
+install.packages('devtools')
+devtools::install_github("https://github.com/kharchenkolab/numbat")  # downloaded by git
+
+# run docker container
+docker run --name numbat -v /PATH/numbat:/mnt/mydata -it pkharchenkolab/numbat-rbase:main /bin/bash

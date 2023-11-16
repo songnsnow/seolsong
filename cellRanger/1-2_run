@@ -1,0 +1,22 @@
+wget -O cellranger-7.1.0.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/cellranger-7.1.0.tar.gz?Expires=1687461282&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9jZi4xMHhnZW5vbWljcy5jb20vcmVsZWFzZXMvY2VsbC1leHAvY2VsbHJhbmdlci03LjEuMC50YXIuZ3oiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE2ODc0NjEyODJ9fX1dfQ__&Signature=Gml82L99DjihaiSi0-56~DkSLdhXrK~cGQ2g8NcAsSrSw11KTzEka4aiZ~LsDbsmofpX~LdcfgwGxTiXKgEfdt0uPiSDI3ThBzQ-zRyfuf8wsSOEAUy~otEBcteWNhc6ghCH9KO5vbHlZY5Z5FppgzbhWvKgomX5WWc68Wj7N70tZQYmnvW5360ycGGFacJ~piZLm5H0jjgdl6kK~F-oPn-SOP96nTwti~Z1XWbTyXbqtw~JLn7UK1n~KAJe0EKfM~XSsWuMH4kHJ7bzF9tA71H5KjsTkzSkwzzZJpn94YtKmzBoEpxeU2~pN6bqmXvoobW-CUq6Kdp~GNrkQ1sVkw__&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA"
+
+wget https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCh38-2020-A.tar.gz
+wget https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-mm10-2020-A.tar.gz
+wget https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCh38-and-mm10-2020-A.tar.gz
+
+cellranger count --id=rcc_10x \
+   --transcriptome=/home/songnsnow/download/refdata-gex-GRCh38-2020-A \
+   --fastqs=/home/songnsnow/RCC/HWS/H372TDSX7 \
+   --sample=3p_GEX \
+   --nosecondary \
+   --localmem=200 \
+   --localcores=8
+
+
+; 위의 명령어를 통해 cell ranger를 실행할 수 있습니다.
+; --id 는 생성되는 결과의 폴더명이며,
+; --fastqs는 fastq 파일이 있는 폴더의 위치,
+; --sample은 metadata에 들어가는 샘플 정보,
+; --transcriptome는 참조 전사체의 위치 입니다.
+
+export PATH=/home/songnsnow/download/cellranger-7.1.0:$PATH

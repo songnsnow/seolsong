@@ -1,0 +1,11 @@
+# installations - set up environment
+# install by R
+install.packages('Seurat')
+install.packages('Matrix')
+install.packages('fields')
+install.packages('KernSmooth')
+install.packages('ROCR')
+install.packages('parallel')
+install.packages('remotes')
+remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
+install.packages('ggplot2')

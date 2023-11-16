@@ -1,0 +1,13 @@
+# commands
+celltypist --help
+celltypist --update-models
+celltypist --show-models
+
+# run celltypist
+celltypist --update-models
+celltypist --indata /PATH/seurat.csv --model model_name.pkl --outdir /PATH/out_dir --transpose-input
+# indata = seurat to csv
+
+# model = from celltypist (see list @ show-models)
+import celltypist
+from celltypist import models

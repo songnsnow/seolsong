@@ -1,0 +1,3 @@
+# override ggsave function so that the default background is "white"
+ggsave <- function(..., bg = 'white')
+ggplot2::ggsave(..., bg = bg)
