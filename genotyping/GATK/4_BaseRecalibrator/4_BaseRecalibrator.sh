@@ -9,27 +9,27 @@ wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0
 
 #Add read groups
 picard AddOrReplaceReadGroups \
-    I=/data/project/RCC_HWS/SS/bulk/STAR/outs/KYE/KYESplit.bam \
-    O=/data/project/RCC_HWS/SS/bulk/STAR/outs/KYE/KYEAdded.bam \
+    I=/PATH/outs/Split.bam \
+    O=/PATH/outs/Added.bam \
     RGID=5 \
     RGLB=lib1 \
     RGPL=illumina \
     RGPU=unit1 \
     RGSM=CSB
 
-samtools view -H /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBAdded.bam | grep '^@RG'
+samtools view -H /PATH/outs/Added.bam | grep '^@RG'
 
 gatk IndexFeatureFile \
-    -F /home/songnsnow/download/STAR_run/reference/Mills_and_1000G_gold_standard.indels.hg38.vcf
+    -F /reference/Mills_and_1000G_gold_standard.indels.hg38.vcf
 
 gatk --java-options "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -XX:+PrintFlagsFinal \
             -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintGCDetails \
             -Xloggc:gc_log.log -Xms4000m" \
     BaseRecalibrator \
-    -R /home/songnsnow/download/STAR_run/reference/Homo_sapiens_assembly38.fasta \
-    -I /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBAdded.bam \
+    -R /reference/Homo_sapiens_assembly38.fasta \
+    -I /PATH/outs/Added.bam \
     --use-original-qualities \
-    -known-sites /home/songnsnow/download/STAR_run/reference/Homo_sapiens_assembly38.dbsnp138.vcf \
-    -known-sites /home/songnsnow/download/STAR_run/reference/Mills_and_1000G_gold_standard.indels.hg38.vcf \
-    -O /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBRecal.table
+    -known-sites /reference/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -known-sites /reference/Mills_and_1000G_gold_standard.indels.hg38.vcf \
+    -O /PATH/outs/Recal.table
 #----------------------------------------------------------------------------------

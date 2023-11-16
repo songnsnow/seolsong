@@ -1,9 +1,9 @@
 
 #VariantFiltration-----------------------------------------------------------------
 gatk VariantFiltration \
-    -R /home/songnsnow/download/STAR_run/reference/Homo_sapiens_assembly38.fasta \
-    -V /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBi.g.vcf.gz \
-    -O /data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSB.vcf.gz \
+    -R /reference/Homo_sapiens_assembly38.fasta \
+    -V /PATH/outs/i.g.vcf.gz \
+    -O /PATH/outs/Name.vcf.gz \
     --window 35 \
     --cluster 3 \
     --filter-name "FS" \
