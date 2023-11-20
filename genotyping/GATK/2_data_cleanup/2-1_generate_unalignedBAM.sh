@@ -1,4 +1,4 @@
 #make unalignedBAM for mergebam -> revertsam
 picard RevertSam \
-    I=/data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBAligned.sortedByCoord.out.bam \
-    O=/data/project/RCC_HWS/SS/bulk/STAR/outs/CSB/CSBUnaligned.bam
+    I=/PATH/outs/Aligned.sortedByCoord.out.bam \
+    O=/PATH/outs/Unaligned.bam

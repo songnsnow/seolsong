@@ -1,4 +1,4 @@
-#1. installation-------------------------------------------------------------------
+#0. installation-------------------------------------------------------------------
 # Get latest STAR source from releases
 wget https://github.com/alexdobin/STAR/archive/2.7.10b.tar.gz
 tar -xzf 2.7.10b.tar.gz
