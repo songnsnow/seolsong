@@ -1,0 +1,13 @@
+singularity exec /data/project/RCC_HWS/Demuxafy.sif souporcell_pipeline.py \
+-i ~/possorted_genome_bam.bam \
+-b ~/barcodes.tsv.gz \
+-f ~/genome.fa \
+--known_genotypes ~/RCC.vcf \
+--known_genotypes_sample_names CSB CSK KJT KSH KYE LHJ MYS YJH \
+-t 40 \
+-o ~/SouporCell \
+-k 8
+
+singularity exec /data/project/RCC_HWS/Demuxafy.sif bash souporcell_summary.sh ~/clusters.tsv
+
+singularity exec /data/project/RCC_HWS/Demuxafy.sif Assign_Indiv_by_Geno.R -r ~/RCC.vcf -c ~/cluster_genotypes.vcf -o ~/SouporCell/

@@ -1,0 +1,18 @@
+singularity exec /data/project/RCC_HWS/Demuxafy.sif cellsnp-lite \
+-s ~/possorted_genome_bam.bam \
+-b ~/barcodes.tsv.gz \
+-O ./Vireotest1 \
+-R ~/RCC.vcf \
+-p 20 \
+--minMAF 0.1 \
+--minCOUNT 20 \
+--gzip
+
+singularity exec /data/project/RCC_HWS/Demuxafy.sif GTbarcode -i /data/project/RCC_HWS/SJ/GT_donors.vireo.vcf.gz -o $dir/GT_barcodes.tsv --randSeed 1
+
+singularity exec /data/project/RCC_HWS/Demuxafy.sif bgzip -c ~/RCC.vcf > ~/RCC.vcf.gz
+singularity exec /data/project/RCC_HWS/Demuxafy.sif tabix -p vcf ~/RCC.vcf.gz
+
+singularity exec /data/project/RCC_HWS/Demuxafy.sif bcftools view ~/RCC.vcf -R ~/Vireotest1/cellSNP.base.vcf.gz -s CSB CSK KJT KSH KYE LHJ MYS YJH -Ov -o ~/Vireotest1/donor_subset.vcf
+
+singularity exec /data/project/RCC_HWS/Demuxafy.sif vireo -c ~/Vireotest1 -d ~/Vireotest1/donor_subset.vcf -o ~/Vireotest1 -t GT

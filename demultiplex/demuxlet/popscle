@@ -1,0 +1,17 @@
+##run demuxlet with popscle#################
+dsc-pileup
+singularity exec Demuxafy.sif popscle demuxlet --plp $DEMUXLET_OUTDIR/pileup --vcf $VCF --field $FIELD --group-list $BARCODES --geno-error-coeff 1.0 --geno-error-offset 0.05 --out $DEMUXLET_OUTDIR/demuxlet --sm-list $INDS
+
+#OR
+(POPSCLE_HOME)/bin/popscle dsc-pileup --sam /data/$bam --vcf /data/$ref_vcf --out /data/$pileup
+(POPSCLE_HOME)/bin/popscle demuxlet --plp /data/$pileup --vcf /data/$external_vcf --field $(GT or GP or PL) --out /data/$filename
+
+popscle demuxlet --sam /data/project/RCC_HWS/H372TDSX7/test_sample/outs/possorted_genome_bam.bam \
+                 --vcf /data/project/RCC_HWS/mRNA-bulk/merged.vcf \
+                 --field GT \
+                 --out /home/songnsnow/RCC/sc/merged_demux
+                
+popscle demuxlet --sam /data/project/RCC_HWS/H372TDSX7/test_sample/outs/possorted_genome_bam.bam \
+                 --vcf /data/project/RCC_HWS/mRNA-bulk/filtered_vcffilter.vcf \
+                 --field GT \
+                 --out /data/project/RCC_HWS/SS/scmerged_demux_filtered

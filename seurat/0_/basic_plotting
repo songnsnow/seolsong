@@ -1,0 +1,11 @@
+#Seurat
+
+DotPlot(monocytes, features = mks) + theme(axis.text.x=element_text(angle=90))
+
+DimPlot(hm, reduction = "umap", group.by='ident', label=TRUE)
+DimPlot(test, reduction = "umap", group.by='ident',cells.highlight=list(dbl), cols.highlight=c('red'), sizes.highlight=0.05, cols='grey')
+
+FeaturePlot(hm, features = mks)
+FeaturePlot(rcc, features = c('MKI67','CD1C','C1QA'))
+
+VlnPlot(object = brain, features = c('C1qa','Tcf7','Il7r','Pdgfrb'), idents = c(11,13,16), split.by = 'sample')
