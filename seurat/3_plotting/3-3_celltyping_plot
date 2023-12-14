@@ -1,0 +1,73 @@
+# load data (skip if continued)
+dt <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_3_2.rds')
+
+# Celltyping ---------------------------------------------------------------------------------------------------------
+## plotting
+dt <- SetIdent(dt, value = dt@meta.data$seurat_clusters)
+
+# FeaturePlot
+mks <- c('MS4A1','CD38','CD27','JCHAIN','CD14','FCGR3A','SELL','CX3CR1','HLA-DR','ITGB2','ITGAM','NRP1','CD1C','PPBP','CD3E','SLC4A10','FOXP3','CD4','CD8B','LEF1','IL7R','CD44','PRF1','NCAM1') 
+
+FeaturePlot(dt, features = mks, ncol=4)
+ggsave('/data/project/RCC_PBMC_HWS/SS/seurat/figures/mks.featureplot.all.png',width=5, height=7, scale=3)
+
+
+# DotPlot
+clsts <- c('0','1','3','8','10','13','16','17','2','12','7','11','14','6','9','18','20','4','5','19','15')
+Idents(dt) <- factor(Idents(dt), levels= clsts)
+
+dt <- SetIdent(dt, value = dt@meta.data$seurat_clusters)
+mks <- c('CD247','CD3E','CD8A','CD8B','CD4','CD14','CD16','CD56','FCGR3A','NCAM1','CD1C','NRP1','FCER1A','MS4A1','CD38','CD27','JCHAIN','PPBP')
+
+dp <- DotPlot(object = dt, features = mks, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip()
+ggsave('/data/project/RCC_PBMC_HWS/SS/seurat/figures/mks.dotplot.all.png',plot=dp,width=6, height=3, scale=2)
+
+# DotPlot for T cell states
+dt <- SetIdent(dt, value = dt@meta.data$seurat_clusters)
+Ts <- subset(dt, idents = c('1','2','3','4','11','12','13','15','16','17','18','19','21'))
+Ts <- c('1','2','3','4','11','12','13','15','16','17','18','19','21')
+# Idents(Ts) <- factor(Idents(Ts), levels= clsts)
+
+mks <- c('PECAM1','CCR7','CD27','BCL2','LEF1','CD44','CD28','IL7R','GZMB','IL2RB','SPN','KLRG1','PRF1','SLC4A10','FOXP3','TRDC','CD3D')
+
+DotPlot(object = Ts, features = mks,col.min=0,cluster.idents = TRUE) + coord_flip()
+ggsave('/data/project/RCC_PBMC_HWS/SS/seurat/figures/mks.dotplot.T.png',width=6, height=4, scale=1)
+
+nk <- c('FCGR3A','NCAM1','IFNG')
+VlnPlot(dt, features=nk, idents=c(5,6,8,14,23),assay='SCT',ncol=3) & ylim(0,3) & geom_boxplot(width=0.15,fill='white')
+ggsave('/data/project/RCC_PBMC_HWS/SS/seurat/figures/mks.vlnplot.nk.png',width=6, height=3,scale=2)
+
+
+# assigning cell id -------------------------------------------------------------------------------------------------
+dt <- SetIdent(dt, value = dt@meta.data$seurat_clusters)
+id <- c('classical MC',
+    'CD4+ Tem','CD8+ Teff','CD4+ Tn','gdT','CD56dim NK','CD56bright NK','naive B','CD56bright NK','intermediate MC','memory B',
+    'CD4+ Tn','CD4+ Tn','CD4+ Tcm','CD56dim NK','CD4+ Tem','CD4+ Tscm','CD8+ Tem','MAIT','Treg','nonclassical MC',
+    'CD8+ Tn','platelet','CD56dim NK','MoDC','plasma')
+
+lbd <- dt
+names(id) <- levels(lbd)
+dt <- RenameIdents(lbd, id)
+dt$cell.type <- dt@active.ident
+
+
+# Plot by id
+DimPlot(dt, reduction = "umap", group.by='cell.type', label=TRUE)
+ggsave('/data/project/RCC_PBMC_HWS/SS/seurat/figures/processed_umap_by.celltype.png',width=5, height=5,scale=1.5)
+
+
+saveRDS(dt,'/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+
+
+
+###########################
+obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+obj$donor.id <- NULL
+obj$pANN_0.25_0.005_4763 <- NULL
+obj$DF.classifications_0.25_0.005_4763 <- NULL
+obj$DF.classifications_0.25_0.005_4262 <- NULL
+obj$percent.mt <- NULL
+obj$nCount_SCT <- NULL
+obj$nFeature_SCT <- NULL
+obj$SCT_snn_res.1.1 <- NULL
+saveRDS(obj, '/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_2.rds')

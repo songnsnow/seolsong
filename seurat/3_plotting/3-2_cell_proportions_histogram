@@ -1,0 +1,199 @@
+# load data (skip if continued)
+dt <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+
+# load libraries
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(ggplot2)
+library(data.table)
+library(tidyr)
+
+
+# Plotting!
+# make dataframe from data
+donor.id <- c(dt$id)
+subtype <- c(dt$subtype)
+subtype2 <- c(dt$subtype2)
+cell.type <- c(dt$cell.type)
+df1 <- data.frame(donor.id)
+df2 <- data.frame(subtype)
+df3 <- data.frame(subtype2)
+df4 <- data.frame(cell.type)
+rm(donor.id,subtype,subtype2,cell.type)
+
+df <- cbind(df1, df2, df3, df4)
+save <- df
+
+## Plotting cell proportions : stacked barplot -----------------------------------------------------------------------
+
+
+
+
+
+
+
+
+## Plotting cell proportions : histogram + trendline (all subtypes) -----------------------------------------------------------------
+
+
+
+
+## Plotting cell proportions : histogram + trendline (big cell types) -----------------------------------------------------------------
+# remove cell type subsetting
+CD4T <- c('CD4+ Tn','CD4+ Tcm','CD4+ Tscm','CD4+ Tem')
+CD8T <- c('CD8+ Tn','CD8+ Tem','CD8+ Teff')
+NK <- c('CD56dim NK','CD56bright NK')
+MC <- c('classical MC','intermediate MC','nonclassical MC')
+BC <- c('naive B','memory B')
+# type_list <- c('CD4+ T','CD8+ T','NK','MC','B')
+
+df$cell.type <- as.character(df$cell.type)
+for (i in 1:nrow(df)){
+    if (df[i,'cell.type'] %in% CD4T){
+        df[i,'cell.type'] <- 'CD4+ T'
+    }
+    else if (df[i,'cell.type'] %in% CD8T){
+        df[i,'cell.type'] <- 'CD8+ T'
+    }
+    else if (df[i,'cell.type'] %in% NK){
+        df[i,'cell.type'] <- 'NK'
+    }
+    else if (df[i,'cell.type'] %in% MC){
+        df[i,'cell.type'] <- 'MC'
+    }
+    else if (df[i,'cell.type'] %in% BC){
+        df[i,'cell.type'] <- 'B'
+    }
+}
+df$cell.type <- as.factor(df$cell.type)
+
+
+# Cell type proportion by Variable
+prop <- function(df1, df2, var1, var2){
+    var1_nq <- noquote(var1)
+    var2_nq <- noquote(var2)
+    df <- as.data.frame.matrix(table(df1,df2))
+    df <- df/rowSums(df)
+    df <- as_tibble(df,rownames=var1)
+    df <- gather(df,key='cell.type',value='perc',2:ncol(df))
+    df <- arrange(df, var1_nq)
+    df <- as.data.frame(df)
+    return(df)
+}
+# celltype_by_subtype <- prop(df$subtype,df$cell.type, "subtype", "cell.type")
+celltype_by_donor <- prop(df$donor.id,df$cell.type,"donor.id", "cell.type")
+
+
+# Add metadata
+data2 <- celltype_by_donor
+data2$subtype <- NA
+data2 <- data2[,c(4,1,2,3)]
+
+for (i in 1:nrow(data2)){
+    if (data2[i,2] == 'RCC.1' | data2[i,2] == 'RCC.2' | data2[i,2] == 'RCC.3' | data2[i,2] == 'RCC.4'){
+        data2[i,1] <- 'NAG'
+    }
+    else{
+        data2[i,1] <- 'AG'
+    }
+}
+# table(data2$subtype,data2$cell.type)
+
+
+data <- data2
+data$donor.id <- NULL
+
+
+data <- as.vector(data)
+d1 <- filter(data,cell.type=='plasma')
+d2 <- filter(data,cell.type=='B')
+d3 <- filter(data,cell.type=='NK')
+d4 <- filter(data,cell.type=='MC')
+d5 <- filter(data,cell.type=='CD4+ T')
+d6 <- filter(data,cell.type=='CD8+ T')
+d7 <- filter(data,cell.type=='DC')
+d8 <- filter(data,cell.type=='MAIT')
+d9 <- filter(data,cell.type=='Treg')
+d10 <- filter(data,cell.type=='platelet')
+d11 <- filter(data,cell.type=='gdT')
+ls <- c(d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11)
+df$cell.type <- as.character(df$cell.type)
+for(i in ls){
+    NAG <- rowSums(i[1:4,3])
+    AG <- rowSums(i[5:8,3])
+    i[1,3] <- NAG
+    i[5,3] <- AG
+    i <- i[-(2:4),3]
+    i <- i[-(6:8),3]
+}
+
+subtype <- c('NAG','AG','NAG','AG','NAG','AG','NAG','AG','NAG','AG','NAG','AG','NAG','AG','NAG','AG','NAG','AG','NAG','AG','NAG','AG')
+cell.type <- c('plasma','plasma','B','B','NK','NK','MC','MC','CD4+ T','CD4+ T','CD8+ T','CD8+ T','DC','DC','MAIT','MAIT','Treg','Treg','platelet','platelet','gdT','gdT')
+perc <- c('','','','','','','','','','','','','','','','','','','','','','')
+ndf <- data.frame(subtype,cell.type,perc)
+celltype <- c('plasma','B','NK','MC','CD4+ T','CD8+ T','DC','MAIT','Treg','platelet','gdT')
+
+r1 <- 1
+r2 <- f
+for(i in celltype){
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##################
+type <- c('B','plasma','MC','MoDC','pDC','platelet','CD4+ T','CD8+ T','MAIT','Treg','gdT','NK')
+p1 <- prop3('B')
+p2 <- prop3('plasma')
+p3 <- prop3('MC')
+p4 <- prop3('MoDC')
+p5 <- prop3('pDC')
+p6 <- prop3('platelet')
+p7 <- prop3('CD4+ T')
+p8 <- prop3('CD8+ T')
+p9 <- prop3('MAIT')
+p10 <- prop3('Treg')
+p11 <- prop3('gdT')
+p12 <- prop3('NK')
+
+prop_plot <- function(ls, v1, v2, v3, data1, data2){
+    for (i in 1:length(ls)){
+        plot <- ggplot(mapping=aes(x=v1,y=perc,label=perc)) +
+        geom_bar(data=data1 %>% filter(v2 == ls[i]), 
+            position=position_dodge(),stat='identity',aes(fill=v3)) +
+        geom_line(data = data2 %>% filter(v2 == ls[i]),
+            aes(color = perc,group = 1),color='black') +
+        geom_point(data = data2 %>% filter(v2 == ls[i]),
+            aes(group = v1),size=3,position = position_dodge(width=0.75),color='black') +
+        ylab("Percentage") +
+        theme(plot.title=element_text(hjust=0.5)) +
+        ggtitle(ls[i])
+        
+    }
+    final_plot <- ggarrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12,
+        ncol=7, nrow=2, common.legend = TRUE, legend="bottom")
+    ggsave('/data/project/RCC_PBMC_HWS/SS/seurat/figures/prop_celltype.png',width=14, height=6, scale=1)
+    return(final_plot)
+}
+
+ggarrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12,
+     ncol=7, nrow=2, common.legend = TRUE, legend="bottom")
+ggsave('/data/project/RCC_PBMC_HWS/SS/seurat/figures/prop_celltype.png',width=14, height=6, scale=1)
+
+dev.off()
+
+## Plotting cell proportions : histogram + trendline (trendline from mean of proportions) -----------------------------------------------------------------
