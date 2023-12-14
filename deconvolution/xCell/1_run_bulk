@@ -1,0 +1,95 @@
+# /usr/bin/env R
+# -----------------------------------------------------------------------
+# description : Calculate cell proportion
+# author      : songnsnow
+# date        : 20231017
+# notes       : 
+# -----------------------------------------------------------------------
+# devtools::install_github('dviraran/xCell')
+
+# load libraries ---------------------------------------------------------
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(xCell)
+library(reshape2)
+library(ggpubr)
+
+
+# analysis ---------------------------------------------------------
+bulk.matrix <- read_excel("/data/project/RCC_PBMC_HWS/mRNA-bulk/result_RNAseq_excel/Expression_profile/StringTie/Expression_Profile.GRCh38.gene.xlsx")
+bulk.matrix <- as.data.frame(bulk.matrix) %>%
+  select('Gene_Symbol','CSB_TPM','KJT_TPM','KSH_TPM','MYS_TPM','CSK_TPM','KYE_TPM','LHJ_TPM','YJH_TPM')
+
+# leave unique rows & remove repeating values in Gene_Symbol column
+bulk.matrix <- bulk.matrix[!duplicated(bulk.matrix$Gene_Symbol), ]
+
+# set rownames to Gene_Symbol
+rownames(bulk.matrix) <- bulk.matrix$Gene_Symbol
+
+# delete Gene_Symbol column
+bulk.matrix$Gene_Symbol <- NULL
+bulk.matrix <- bulk.matrix %>% as.matrix()
+bk.dat <- bulk.matrix
+
+write.table(bk.dat , file = '/data/project/RCC_PBMC_HWS/rlo/bulk_code/bulk_mixture.txt', append = FALSE, sep = "\t", 
+            row.names = TRUE, col.names = TRUE, quote = FALSE)
+
+bulk_cell_proportion <- as.data.frame(xCellAnalysis(bk.dat))
+bcp <- bulk_cell_proportion %>% t() 
+
+subtype <- colnames(bcp)
+
+#  boxplot w/ dot plot----------------------------------------------------------
+for (type in subtype){
+  data <- data.frame(
+    people = rownames(bcp),
+    Value = as.numeric(bcp[,type]),
+    Group = rep(c("NAG","AG"), each = 4)
+  )
+
+  p <- ggplot(data, aes(x = Group, y = Value)) + 
+  geom_boxplot(width = 0.5, fill =  c("#ff6b6b", "#00ffaa")) +
+  labs(x = type, y = "Expression level") +
+  scale_shape_manual(values = c(1, 16)) +  # Set point shapes for NAG and AG
+  theme(legend.position = "top") +
+  ggtitle(paste0("Cell proportion in", type))
+ 
+  p + geom_dotplot(binaxis='y', stackdir='center',position=position_dodge(1), dotsize = 0.5)+ 
+        theme(axis.title.x = element_text(size = 20, face = "bold"),  # set size & boldness of x-axis label
+        axis.title.y = element_text(size = 20, face = "bold"),  # set size & boldness of y-axis label
+        plot.title = element_text(size = 20, face = "bold"))
+
+  ggsave(filename = paste0("/data/project/RCC_PBMC_HWS/rlo/cell_proportion_figures/",type,".png"), plot = p)
+}
+
+# barplot w/ trendline--------------------------------------------------------
+
+subtype <- colnames(bcp)
+
+for (type in subtype){
+  total_sum <- sum(bcp[,type])
+  scaled_bcp <- bcp[,type]/total_sum
+
+  data <- data.frame(
+    People = rownames(bcp),
+    Value = as.numeric(scaled_bcp),
+    Group = rep(c("NAG","AG"), each = 4)
+  )
+  means <- data %>% group_by(Group) %>% summarise(Value = mean(Value))
+
+  plot <- ggplot(data,aes(x=Group, y=Value,label=Value)) +
+    geom_bar(data=data,
+             position=position_dodge(),stat='identity',aes(fill=People)) +
+    geom_line(data = means,
+              aes(color = Group,group = 1),color='black') +
+    geom_point(data = means,
+               aes(group = Group),size=3,position = position_dodge(width=0.75),color='black') +
+    ylab("Percentage") +
+    theme(plot.title=element_text(hjust=0.5)) +
+    theme(legend.position = "none") + 
+    ggtitle(paste0("Cell Proportion of",type))
+  
+  ggsave(filename = paste0("/data/project/RCC_PBMC_HWS/rlo/cell_proportion_figures/",type,".png"), plot = plot)
+}
+

@@ -1,0 +1,89 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : Draw hallmalk pathway with bulk-seq data
+# author      : songnsnow
+# date        : 
+# notes       : conda activate sc_pathway_r430(env)
+#-----------------------------------------------------------------------
+
+#library loading----------------------------------------------------------------------------
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(ggplot2)
+library(fgsea)
+library(devtools) 
+library(SCPA)
+library(msigdbr) 
+
+#Set working directory-----------------------------------------------------------------------
+plotEnrichmentResults <- function(results, title = "Enrichment Plot") {
+  top_20_results <- head(results[order(results$NES), ], 20)
+  
+  max_NES <- max(top_20_results$NES)
+  min_NES <- min(top_20_results$NES)
+  dot_size <- (top_20_results$NES - min_NES) / (max_NES - min_NES) * 5 + 5
+  
+  ggplot(top_20_results, aes(y = reorder(pathway, NES), x = NES, size = dot_size, color = NES)) +
+    geom_point() +
+    scale_size_continuous(range = c(5, 10)) + 
+    scale_colour_gradient(low = "blue", high = "red") + 
+    labs(title = title, y = "Pathway", x = "Normalized Enrichment Score (NES)")
+}
+
+## import sample information ------------------------------------------------------------------
+expression_gene_ex <- "/data/project/RCC_PBMC_HWS/mRNA-bulk/result_RNAseq_excel/Expression_profile/StringTie/Expression_Profile.GRCh38.gene.xlsx"
+expression_gene <- as.data.frame(read_excel(expression_gene_ex))
+tpm_df <- expression_gene %>%
+  select("Gene_Symbol",'CSB_TPM','KJT_TPM','KSH_TPM','MYS_TPM','CSK_TPM','KYE_TPM','LHJ_TPM','YJH_TPM')
+
+# analysis----------------------------------------------------------------------------------------
+## load reference hallmalk_pathway
+hallmark_genesets <- msigdbr(species = "Homo sapiens", category = "H")
+fgsea_sets<- hallmark_genesets %>% split(x = .$gene_symbol, f = .$gs_name)
+
+## analyze NAG, AG group
+expression_gene <- expression_gene[!duplicated(expression_gene$Gene_Symbol), ]
+row.names(expression_gene) <- expression_gene$Gene_Symbol
+
+nag_group <- expression_gene[, c('CSB_TPM', 'KJT_TPM', 'KSH_TPM', 'MYS_TPM')]
+ag_group <- expression_gene[, c('CSK_TPM', 'KYE_TPM', 'LHJ_TPM', 'YJH_TPM')]
+
+nag_group_mean <- rowMeans(nag_group)
+ag_group_mean <- rowMeans(ag_group)
+nag_sorted_indices <- order(-nag_group_mean)
+ag_sorted_indices <- order(-ag_group_mean)
+
+top_n_genes_nag <- row.names(nag_group)[nag_sorted_indices[1:10]]
+top_n_genes_ag <- row.names(ag_group)[ag_sorted_indices[1:10]]
+
+cat(top_n_genes_nag, sep = "\n")
+cat(top_n_genes_ag, sep = "\n")
+
+
+## Pathway analysis------------------------------------------------------------------------------
+# Hallmark pathway - NAG
+nag_results <- fgsea(pathways = fgsea_sets,
+                     stats = nag_group_mean,
+                    minSize = 5,
+                    maxSize = 500,
+                    nperm = 10000)
+
+# AG
+ag_results <- fgsea(pathways = fgsea_sets,
+                    stats = ag_group_mean,
+                    minSize = 5,
+                    maxSize = 500,
+                    nperm = 10000)
+
+# result
+print(head(nag_results, 5))
+print(head(ag_results, 5))
+
+
+# visualization ---------------------------------------------------------------------------
+NAG_plot <- plotEnrichmentResults(nag_results, title = "NAG Group Enrichment Plot")
+ggsave("/data/project/RCC_PBMC_HWS/rlo/bulk_sc_analysis/bulk_pathway_NAG.png", NAG_plot, width = 12, height =12, scale = 1.5)
+
+AG_plot <- plotEnrichmentResults(ag_results, title = "AG Group Enrichment Plot")
+ggsave("/data/project/RCC_PBMC_HWS/rlo/bulk_sc_analysis/bulk_pathway_AG.png", AG_plot, width = 12, height =12, scale = 1.5)

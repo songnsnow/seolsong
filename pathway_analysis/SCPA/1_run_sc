@@ -1,0 +1,123 @@
+# /usr/bin/env R
+# -----------------------------------------------------------------------
+# description : Make heatmap & pathway plot from .rds files
+# author      : songnsnow
+# date        : 
+# notes       : conda activate sc_pathway_r430(env)
+# -----------------------------------------------------------------------
+
+# load libraries -------------------------------------------------------
+library(SCPA)
+library(msigdbr)
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(data.table)
+library(patchwork)
+library(magrittr)
+library(ComplexHeatmap)
+library(colorRamp2)
+
+# pathway analysis-------------------------------------------------
+seurat_obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+
+DefaultAssay(seurat_obj) <- "RNA"
+####
+dt <- seurat_obj
+
+dt <- NormalizeData(dt, normalization.method = "LogNormalize", scale.factor = 10000)
+dt <- FindVariableFeatures(dt, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(dt)
+dt <- ScaleData(dt, features = all.genes)
+dt <- RunPCA(dt, features = VariableFeatures(object = dt))
+dt <- RunUMAP(dt, dims = 1:50)
+dt <- FindNeighbors(dt, dims = 1:50)
+dt <- FindClusters(dt, resolution = 1)
+
+dt <- SetIdent(dt, value = dt@meta.data$seurat_clusters)
+
+umap_type <- DimPlot(dt, reduction = "umap", label=TRUE, group.by = "cell.type")
+ggsave("/data/project/RCC_PBMC_HWS/rlo/pathway_figures/final_umap.png", plot = umap_type, width = 5, height = 5 )
+
+# load homo sapiens pathway------------------------------------------------------
+pathways <- msigdbr("Homo sapiens", "H") %>%
+  format_pathways()
+
+Idents(dt) <- dt$cell.type
+
+umap_subtype <- DimPlot(dt, label = T, group.by = "cell.type", split.by = "subtype")
+ggsave("/data/project/RCC_PBMC_HWS/rlo/pathway_figures/final_umap_subtype.png", plot = umap_subtype, width = 5, height = 5 )
+
+
+idents <- c('CD4+T','NK','gdT','platelet', 'B','CD8+T','MC','MAIT','DC','Treg','plasma')
+dt <- subset(dt, idents = idents)
+
+cell_types <- unique(dt$cell.type)
+dt <- SplitObject(dt, split.by = "subtype")
+
+scpa_out <- list()
+for (i in cell_types) {
+  
+  NAG <- seurat_extract(dt$NAG, 
+                            meta1 = "cell.type", value_meta1 = i)
+  
+  AG <- seurat_extract(dt$AG, 
+                          meta1 = "cell.type", value_meta1 = i)
+  
+  print(paste("comparing", i))
+  scpa_out[[i]] <- compare_pathways(list(NAG,AG), pathways) %>%
+    select(Pathway, qval) %>%
+    set_colnames(c("Pathway", paste(i, "qval", sep = "_")))  
+}
+
+scpa_out <- scpa_out %>% 
+  reduce(full_join, by = "Pathway") %>% 
+  set_colnames(gsub(colnames(.), pattern = " ", replacement = "_")) %>%
+  select(c("Pathway", grep("_qval", colnames(.)))) %>%
+  filter_all(any_vars(. > 2)) %>%
+  column_to_rownames("Pathway")
+
+blood_paths <- c("HALLMARK_HYPOXIA","HALLMARK_P53_PATHWAY","HALLMARK_TNFA_SIGNALING_VIA_NFKB","HALLMARK_UV_RESPONSE_UP","HALLMARK_IL6_JAK_STAT3_SIGNALING" ,
+ "HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION","HALLMARK_ESTROGEN_RESPONSE_EARLY" ,"HALLMARK_APOPTOSIS" ,"HALLMARK_ALLOGRAFT_REJECTION" ,
+ "HALLMARK_INTERFERON_GAMMA_RESPONSE" ,"HALLMARK_MTORC1_SIGNALING","HALLMARK_ESTROGEN_RESPONSE_LATE" ,"HALLMARK_REACTIVE_OXYGEN_SPECIES_PATHWAY",
+ "HALLMARK_UV_RESPONSE_DN","HALLMARK_FATTY_ACID_METABOLISM" ,"HALLMARK_UNFOLDED_PROTEIN_RESPONSE", "HALLMARK_IL2_STAT5_SIGNALING",
+ "HALLMARK_E2F_TARGETS", "HALLMARK_NOTCH_SIGNALING","HALLMARK_KRAS_SIGNALING_UP","HALLMARK_MYC_TARGETS_V1","HALLMARK_PEROXISOME","HALLMARK_PANCREAS_BETA_CELLS",
+ "HALLMARK_PI3K_AKT_MTOR_SIGNALING","HALLMARK_CHOLESTEROL_HOMEOSTASIS","HALLMARK_INFLAMMATORY_RESPONSE","HALLMARK_ANDROGEN_RESPONSE","HALLMARK_APICAL_JUNCTION",
+  "HALLMARK_XENOBIOTIC_METABOLISM","HALLMARK_ADIPOGENESIS","HALLMARK_ANGIOGENESIS" ,"HALLMARK_APICAL_SURFACE","HALLMARK_BILE_ACID_METABOLISM" ,
+  "HALLMARK_COAGULATION", "HALLMARK_COMPLEMENT" ,"HALLMARK_DNA_REPAIR","HALLMARK_G2M_CHECKPOINT","HALLMARK_GLYCOLYSIS" ,"HALLMARK_HEDGEHOG_SIGNALING",
+  "HALLMARK_HEME_METABOLISM","HALLMARK_INTERFERON_ALPHA_RESPONSE","HALLMARK_KRAS_SIGNALING_DN", "HALLMARK_MITOTIC_SPINDLE","HALLMARK_MYC_TARGETS_V2",
+  "HALLMARK_MYOGENESIS","HALLMARK_OXIDATIVE_PHOSPHORYLATION","HALLMARK_PROTEIN_SECRETION" ,"HALLMARK_SPERMATOGENESIS" , "HALLMARK_TGF_BETA_SIGNALING","HALLMARK_WNT_BETA_CATENIN_SIGNALING")
+
+position <- which(rownames(scpa_out) %in% blood_paths)
+row_an <- rowAnnotation(Genes = anno_mark(at = which(rownames(scpa_out) %in% blood_paths),
+                                          labels = rownames(scpa_out)[position],
+                                          labels_gp = gpar(fontsize = 7),
+                                          link_width = unit(2.5, "mm"),
+                                          padding = unit(1, "mm"),
+                                          link_gp = gpar(lwd = 0.5)))
+col_hm <- colorRamp2(colors = c("blue", "white", "red"), breaks = c(0, 1, 4))
+
+heat_map <- Heatmap(as.matrix(scpa_out),
+        col = col_hm,
+        name = "Qval",
+        show_row_names = F,
+        right_annotation = row_an,
+        column_names_gp = gpar(fontsize = 8),
+        border = T,
+        column_km = 3,
+        row_km = 3,
+        column_labels = c("CD4+T_qval","NK_qval","gdT_qval","platelet_qval", "B_qval", "CD8+T_qval","MC_qval","MAIT_qval","DC_qval","Treg_qval","plasma_qval"))
+
+ggsave('/data/project/RCC_PBMC_HWS/rlo/pathway_figures/SCPA_heatmap.png', heat_map, width = 5, height = 5, scale = 1.5)
+
+# Loop through each pathway and plot rank-----------------------------------------------------------------------------------------------------
+for (pathway_name in rownames(scpa_out)) {
+  # Generate the plot
+  rank_plot <- plot_rank(scpa_out = scpa_out,
+                         pathway = pathway_name,
+                         base_point_size = 2,
+                         highlight_point_size = 3)
+  # Save the plot
+  ggsave(filename = paste0("/data/project/RCC_PBMC_HWS/rlo/pathway_figures/rank_plot/", pathway_name, ".png"), plot = rank_plot )
+}

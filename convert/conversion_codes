@@ -1,0 +1,27 @@
+# excel file to dataframe
+
+# csv to dataframe
+
+
+
+
+
+# Read files and save R objects using file names from tibble: https://community.rstudio.com/t/read-files-and-save-r-objects-using-file-names-from-tibble/91588
+# list datasets
+# note: `list.files` can create a list of all files in a folder for you
+data <- list(iris, cars, faithful) # using built in r data sets
+names <- list("iris.csv", "cars.csv", "faithful.csv")
+
+# write the files, so we can show how to read them in
+mapply(write.csv, data, names) # save the files as csvs
+
+# read the files into R and create a single list of data sets
+new_data <- lapply(names, read.csv)
+
+# save as rds - one list object with all three datasets
+saveRDS(new_data) 
+
+# save as three separate rds files
+# change the file extension
+new_names <- sub(".csv", ".rds", names)
+mapply(saveRDS, new_data, new_names)

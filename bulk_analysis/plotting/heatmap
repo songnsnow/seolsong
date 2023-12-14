@@ -1,0 +1,33 @@
+# /usr/bin/env R
+# -----------------------------------------------------------------------
+# description : Make heatmap with bulk file
+# author      : songnsnow
+# date        : 
+# notes       : conda activate sc_pathway_r430(env)
+# -----------------------------------------------------------------------
+
+# load libraries ----------------------------------------------------------------------------
+library(tidyverse)
+library(dplyr)
+library(reshape2)
+library(readxl)
+library(gplots)
+library(ggplot2)
+
+# set working diretory -----------------------------------------------------------------------
+
+## set excel file PATH
+## import sample information
+expression_gene_ex <- "/data/project/RCC_PBMC_HWS/mRNA-bulk/result_RNAseq_excel/Expression_profile/StringTie/Expression_Profile.GRCh38.gene.xlsx"
+expression_gene <- as.data.frame(read_excel(expression_gene_ex))
+tpm_df <- expression_gene %>%
+  select("Gene_Symbol",'CSB_TPM','KJT_TPM','KSH_TPM','MYS_TPM','CSK_TPM','KYE_TPM','LHJ_TPM','YJH_TPM')
+
+# convert df to matrix (excluding Gene_Symbol column)
+data_matrix <- as.matrix(tpm_df[, -1])  # convert columns to matrix (excluding Gene_Symbol)
+
+# draw heatmap
+heat_map <- heatmap.2(data_matrix,
+          Rowv = FALSE,    # row clustering x
+          Colv = TRUE,     # column clustering o
+)

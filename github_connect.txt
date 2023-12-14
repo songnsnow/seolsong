@@ -7,10 +7,10 @@ git branch -M main
 git remote add origin git@github.com:songnsnow/seolsong.git
 git push -u origin main
 
-# upload new files to repository
+# upload new file/s to repository
 git add .
 git status
-git commit -m "231120_1"
+git commit -m "231121_1"
 git push -u origin main
 
 # download new files from repository

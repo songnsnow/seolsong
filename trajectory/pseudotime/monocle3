@@ -1,0 +1,204 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : Carculate pseudotime with singlecell file
+# author      : songnsnow
+# date        : 
+# notes       : 
+#-----------------------------------------------------------------------
+
+
+#installation
+if (!requireNamespace("BiocManager", quietly = TRUE))
+install.packages("BiocManager")
+BiocManager::install(version = "3.14")
+
+BiocManager::install(c('BiocGenerics', 'DelayedArray', 'DelayedMatrixStats',
+                       'limma', 'lme4', 'S4Vectors', 'SingleCellExperiment',
+                       'SummarizedExperiment', 'batchelor', 'HDF5Array',
+                       'terra', 'ggrastr'))
+
+install.packages("devtools")
+devtools::install_github('cole-trapnell-lab/monocle3')
+
+#load
+library(monocle3)
+library(ggplot2)
+library(dplyr)
+#ERROR: dependencies ‘ggrastr’, ‘spdep’, ‘terra’ are not available for package ‘monocle3’
+install.packages('ggrastr')
+install.packages('spdep')
+install.packages('terra')
+
+
+#overall process
+#load data
+data1 <- readRDS('/home/songnsnow/Brain/230522/MG_MC.rds')
+data2 <- readRDS('/home/songnsnow/Brain/230522/MG_only.rds')
+cds <- as.cell_data_set(data1)
+cds <- cluster_cells(cds)
+p1 <- plot_cells(cds, show_trajectory_graph = FALSE)
+p2 <- plot_cells(cds, color_cells_by = "partition", show_trajectory_graph = FALSE)
+wrap_plots(p1, p2)
+
+integrated.sub <- subset(as.Seurat(cds), monocle3_partitions == 1)
+cds <- as.cell_data_set(integrated.sub)
+cds <- learn_graph(cds)
+plot_cells(cds, label_groups_by_cluster = FALSE, label_leaves = FALSE, label_branch_points = FALSE)
+
+max.avp <- which.max(unlist(FetchData(integrated.sub, "AVP")))
+max.avp <- colnames(integrated.sub)[max.avp]
+cds <- order_cells(cds, root_cells = max.avp)
+plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, 
+    label_branch_points = FALSE)
+
+# Set the assay back as 'integrated'
+integrated.sub <- as.Seurat(cds, assay = "integrated")
+FeaturePlot(integrated.sub, "monocle3_pseudotime")
+
+
+## Step 1: Normalize and pre-process the data
+cds <- preprocess_cds(cds, num_dim = 100)
+
+#remove batch effects (optional)
+## Step 2: Remove batch effects with cell alignment
+cds <- align_cds(cds, alignment_group = "batch")
+
+#clustering
+## Step 3: Reduce the dimensions using UMAP
+cds <- reduce_dimension(cds)
+
+## Step 4: Cluster the cells
+cds <- cluster_cells(cds)
+
+#order cells in pseudotime along a trajectory (optional)
+## Step 5: Learn a graph
+cds <- learn_graph(cds)
+
+## Step 6: Order cells
+cds <- order_cells(cds)
+
+plot_cells(cds)
+
+# With regression:
+gene_fits <- fit_models(cds, model_formula_str = "~embryo.time")
+fit_coefs <- coefficient_table(gene_fits)
+emb_time_terms <- fit_coefs %>% filter(term == "embryo.time")
+emb_time_terms <- emb_time_terms %>% mutate(q_value = p.adjust(p_value))
+sig_genes <- emb_time_terms %>% filter (q_value < 0.05) %>% pull(gene_short_name)
+
+# With graph autocorrelation:
+pr_test_res <- graph_test(cds,  neighbor_graph="principal_graph", cores=4)
+pr_deg_ids <- row.names(subset(pr_test_res, q_value < 0.05))
+
+
+
+
+
+
+
+
+
+
+
+
+
+# load libraries ------------------------------------------------------------
+library(Seurat)
+library(tidyverse)
+library(dplyr)
+library(monocle3)
+library(SeuratWrappers)
+library(ggplot2)
+library(ggridges)
+
+# load data ---------------------------------------------------------
+data <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+# pre-processing ------------------------------------------------------------------------------------------
+data <- PercentageFeatureSet(data, pattern = "^MT-", col.name = "percent.mt")
+data <- SCTransform(data, vars.to.regress = "percent.mt", verbose = FALSE)
+data <- RunPCA(data, verbose=FALSE)
+data <- RunUMAP(data, dims = 1:50, verbose=FALSE)
+data <- FindNeighbors(data, dims = 1:50, verbose=FALSE)
+data <- FindClusters(data, resolution = 1.1, verbose=FALSE)
+cds <- as.cell_data_set(data)
+
+head(colData(cds))
+
+# get feature
+fData(cds)
+rownames(fData(cds))[1:10]
+fData(cds)$gene_short_name <- rownames(fData(cds))
+head(fData(cds))
+head(counts(cds))
+
+## Retrieving cluster
+recreate.partitions <- c(rep(1, length(cds@colData@rownames)))
+names(recreate.partitions) <- cds@colData@rownames
+recreate.partitions <- as.factor(recreate.partitions)
+recreate.partitions
+
+cds@clusters@listData[["UMAP"]][["partitions"]] <- recreate.partitions
+
+list.cluster <- data@active.ident
+cds@clusters@listData[["UMAP"]][["clusters"]] <- list.cluster
+
+cds@int_colData@listData[["reducedDims"]]@listData[["UMAP"]] <- data@reductions$umap@cell.embeddings
+
+cluster.before.traj <-plot_cells(cds, color_cells_by = "cluster", label_groups_by_cluster = F, 
+           group_label_size = 5) + theme(legend.position = "right")
+
+cluster.before.traj
+
+plot_cells(cds, label_groups_by_cluster=FALSE,  color_cells_by = "cell.type") + theme(legend.position = 'right')
+plot_cells(cds, label_groups_by_cluster= FALSE, color_cells_by = "donor.id") + theme(legend.position = 'right')
+
+# learn trajectory-----------------------------------------------------------------------------------------
+
+cds <- cds@clusters@listData[['T']]
+cds <- learn_graph(cds, use_partition = F)
+
+plot_cells(cds, color_cells_by = "cluster", label_groups_by_cluster = F,
+           label_branch_points = T, label_roots = T, label_leaves = F,
+           group_label_size = 5)
+
+cds <- order_cells(cds, reduction_method = "UMAP", root_cells = colnames(cds[, clusters(cds) == 5]))
+plot_cells(cds, color_cells_by = "pseudotime", label_groups_by_cluster = T,
+           label_branch_points = T, label_roots = F, label_leaves = F)
+head(pseudotime(cds), 10)
+
+cds$monocle3_pseudotime <- pseudotime(cds)
+data.pseudo <- as.data.frame(colData(cds))
+
+ggplot(data.pseudo, aes(monocle3_pseudotime, seurat_clusters, fill = seurat_clusters)) + geom_boxplot()
+
+ggplot(data.pseudo, aes(monocle3_pseudotime, reorder(seurat_clusters, monocle3_pseudotime), fill = seurat_clusters)) + geom_boxplot()
+
+
+# find genes that change as a function of pseudotime ----------------------------------------------------
+deg <- graph_test(cds, neighbor_graph = "principal_graph")
+deg %>% arrange(q_value) %>% filter(status == "OK") %>% head()
+
+FeaturePlot(data, features = c("HES4",'NADK','RPL22','TNFRSF25','RERE','CA6'))
+
+# add pseudotime to SeuratObject
+data$pseudotime <- pseudotime(cds)
+FeaturePlot(data, features = "pseudotime")
+
+# draw Edge plot
+RidgePlot(data, features = c("HES4",'NADK','RPL22'), sort = T, idents = c("5", "6", "0", "1", "7"))
+
+saveRDS(dt,'/data/project/RCC_PBMC_HWS/rlo/seurat_pseudotime.rds')
+
+# ---------------------------------------------------------------------------------------
+cds_3d <- reduce_dimension(cds, max_components = 3)
+cds_3d <- cluster_cells(cds_3d)
+cds_3d <- learn_graph(cds_3d)
+#cds_3d <- order_cells(cds_3d, root_pr_nodes=get_earliest_principal_node(cds))
+
+cds_3d_plot_obj <- plot_cells_3d(cds_3d, color_cells_by="partition")
+
+# sc trajectory analysis ------------------------------------------------------------
+cds <- preprocess_cds(cds, num_dim = 50)
+
+cds <- reduce_dimension(cds)
+plot_cells(cds, label_groups_by_cluster=FALSE,  color_cells_by = "cell.type")

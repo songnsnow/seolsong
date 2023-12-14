@@ -1,0 +1,95 @@
+# /usr/bin/env R
+# -----------------------------------------------------------------------
+# description : Make heatmap & pathway plot from .rds files
+# author      : songnsnow
+# date        : 
+# notes       : conda activate sc_pathway_r430(env)
+# -----------------------------------------------------------------------
+
+# load libraries -------------------------------------------------------
+library(Seurat) 
+library(devtools) 
+library(presto)
+library(msigdbr) 
+library(fgsea) 
+library(tidyr) 
+library(dplyr) 
+library(ggplot2) 
+library(tibble) 
+library(tidyverse) 
+library(data.table)
+library(AUCell)
+library(ggplot2)
+library(reshape2)
+
+# analysis ----------------------------------------------------------------------------------
+set.seed(123)
+seurat_obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+
+DefaultAssay(seurat_obj) <- "RNA"
+seurat_obj <- SetIdent(seurat_obj, value = seurat_obj$seurat_clusters)
+
+pathways <- paste0("Pathway_", 1:20)
+enrichment_scores <- matrix(runif(100 * 20, -2, 2), ncol = 20)
+auc_values <- matrix(runif(100 * 20, 0.5, 1), ncol = 20)
+
+cluster_enrichment <- data.frame(Cluster = clusters, pathways, enrichment_scores)
+cluster_auc <- data.frame(Cluster = clusters, pathways, auc_values)
+
+melted_enrichment <- melt(cluster_enrichment, id.vars = c("Cluster", "pathways"), variable.name = "Pathway", value.name = "Enrichment")
+melted_auc <- melt(cluster_auc, id.vars = c("Cluster", "pathways"), variable.name = "Pathway", value.name = "AUC")
+
+heatmap_data <- merge(melted_enrichment, melted_auc, by = c("Cluster", "pathways", "Pathway"))
+heatmap_data$Cluster_Pathway <- paste(heatmap_data$Cluster, heatmap_data$Pathway, sep = "_")
+
+heatmap_plot <- ggplot(heatmap_data, aes(x = Cluster_Pathway, y = Cluster, fill = Enrichment)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white") +
+  labs(title = "Cluster-Pathway Enrichment Heatmap", x = "Cluster_Pathway", y = "Cluster") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+print(heatmap_plot)
+
+
+#####################################################################################################3
+myData.cluster<-wilcoxauc(seurat_obj, "Status", groups_use = c("NAG","AG"))
+
+# Load GSEA gene sets
+myData.cluster %>%
+  dplyr::filter(group == "AG") %>%
+  arrange(desc(logFC), desc(auc)) %>%
+  head(n = 10)
+
+AG_genes <- myData.cluster %>%
+  dplyr::filter(group == "AG") %>%
+  arrange(desc(auc)) %>% 
+  dplyr::select(feature, auc)
+
+ranks <- deframe(AG_genes)
+head(ranks)
+
+m_df<- msigdbr(species = "Homo sapiens", category = "H") 
+fgsea_sets <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+
+head(m_df)
+dplyr::count(myData.cluster, group)
+
+#################################################################################
+# calculate enrichment score with AUC score - visualization
+fgseaRes <- fgsea(fgsea_sets, stats = fold_changes, nperm = 1000)
+
+fgseaResTidy <- fgseaRes %>%
+  as_tibble() %>%
+  arrange(desc(NES))
+
+fgseaResTidy %>% 
+  dplyr::select(-leadingEdge, -ES, -nMoreExtreme) %>% 
+  arrange(padj) %>% 
+  head()
+
+ggplot(fgseaResTidy %>% filter(padj < 0.05) %>% head(n= 50), aes(reorder(pathway, NES), NES)) +
+  geom_col(aes(fill= NES<0)) +
+  coord_flip() +
+  labs(x="Pathway", y="Normalized Enrichment Score",
+       title="Hallmark pathways NES from GSEA") + 
+  theme_minimal()

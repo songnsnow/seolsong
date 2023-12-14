@@ -1,4 +1,327 @@
+#install
+if (!requireNamespace("BiocManager", quietly=TRUE))
+    install.packages("BiocManager")
+BiocManager::install("kstreet13/slingshot")
+
+#load
+library(Seurat) 
+library(SingleCellExperiment)
+library(slingshot)
+library(RColorBrewer)
+
+
+#load Seuratobject data
+data1 <- readRDS('/home/songnsnow/Brain/230522/MG_MC.rds')
+data2 <- readRDS('/home/songnsnow/Brain/230522/MG_only.rds')
+
+#---------------------------------------------------------------------
+#making single cell object from Seurat object
+sce <- as.SingleCellExperiment(data1)
+#this has the cell classification
+table(sce$ident)
+#---------------------------------------------------------doesn't work
+
+#https://nbisweden.github.io/workshop-archive/workshop-scRNAseq/2020-01-27/labs/compiled/slingshot/slingshot.html-------
+# Define a color pallete to use
+pal <- c(RColorBrewer::brewer.pal(9, "Set1"), RColorBrewer::brewer.pal(8, "Set2"))
+
+###############MG & MC#################
+
+data1 <- SetIdent(data1, value = data1@meta.data$seurat_clusters)
+dimred <- data1@reductions$umap@cell.embeddings
+clustering <- data1@active.ident   #data2@meta.data$seurat_clusters
+counts <- as.matrix(data1@assays$RNA@counts[data1@assays$RNA@var.features, ])
+
+# data1_sce <- slingshot(data1, clusterLabels =data1@meta.data$label, reducedDim = "PCA", allow.breaks = FALSE)
+
+set.seed(1)
+lineages <- getLineages(data=dimred, clusterLabels=clustering)
+lineages
+
+png(file = '/home/songnsnow/Brain/230619/mg_mc_num.png', width=1000)
+par(mfrow = c(1, 2))
+plot(dimred[, 1:2], col = pal[clustering], cex = 0.5, pch = 16)
+for (i in levels(clustering)) {
+    text(mean(dimred[clustering == i, 1]), mean(dimred[clustering == i, 2]), labels = i, font = 2)
+}
+plot(dimred[, 1:2], col = pal[clustering], cex = 0.5, pch = 16)
+lines(SlingshotDataSet(lineages), lwd = 3, col = "black")
+dev.off()
 
 
 
+
+#230619#######################
+data1 <- SetIdent(data1, value = data1@meta.data$integrated_snn_res.0.5)
+dimred <- data1@reductions$umap@cell.embeddings
+clustering <- data1@active.ident   #data2@meta.data$seurat_clusters
+counts <- as.matrix(data1@assays$RNA@counts[data1@assays$RNA@var.features, ])
+
+# data1_sce <- slingshot(data1, clusterLabels =data1@meta.data$label, reducedDim = "PCA", allow.breaks = FALSE)
+
+set.seed(1)
+lineages <- getLineages(data=dimred, clusterLabels=clustering)
+lineages
+
+png(file = '/home/songnsnow/Brain/230619/mg_mc_i.png', width=1000)
+par(mfrow = c(1, 2))
+plot(dimred[, 1:2], col = pal[clustering], cex = 0.5, pch = 16)
+for (i in levels(clustering)) {
+    text(mean(dimred[clustering == i, 1]), mean(dimred[clustering == i, 2]), labels = i, font = 2)
+}
+plot(dimred[, 1:2], col = pal[clustering], cex = 0.5, pch = 16)
+lines(SlingshotDataSet(lineages), lwd = 3, col = "black")
+dev.off()
+
+
+#######################################
+
+
+
+
+#MGMC label by age####################
+test <- data1
+test <- SetIdent(test, value = test@meta.data$sample)
+dimred <- test@reductions$umap@cell.embeddings
+testcls <- test@active.ident
+counts <- as.matrix(test@assays$RNA@counts[test@assays$RNA@var.features, ])
+lineages <- getLineages(data=dimred, clusterLabels=testcls)
+lineages
+png(file = '/home/songnsnow/Brain/230605(trajectory)/mg_mc_age.png', width=500)
+plot(dimred[, 1:2], col = pal[testcls], cex = 0.5, pch = 16)
+legend("topright",legend=c("F4M","F21M"),fill=c("red","blue"),border="white",box.lty=0,cex=1)
+dev.off()
+
+# png(file = '/home/songnsnow/Brain/230605(trajectory)/mg_mc_num.png', width=1000)
+# plot(dimred[, 1:2], col = pal[clustering], cex = 0.5, pch = 16)
+# lines(SlingshotDataSet(lineages), lwd = 3, type='lineages' col = "black")
+# dev.off()
+
+
+
+
+curves <- getCurves(lineages, approx_points = 300, thresh = 0.01, stretch = 0.8, allow.breaks = FALSE, shrink = 0.99)
+curves
+
+png(file = '/home/songnsnow/Brain/230605(trajectory)/mg_mc_line.png')
+plot(dimred, col = pal[clustering], asp = 1, pch = 16)
+lines(SlingshotDataSet(curves), lwd = 3, col = "black")
+dev.off()
+
+test1 <- data1
+
+test1$pseudotime1 <- sce1$slingPseudotime_1
+# data1$pseudotime2 <- sce1$slingPseudotime_2
+# data1$pseudotime3 <- sce1$slingPseudotime_3
+png(file = '/home/songnsnow/Brain/230619/fp1.png', width=1000)
+FeaturePlot(data1, c("pseudotime1"))
+dev.off()
+
+
+
+
+
+###############ONLY MG#################
+
+data2 <- SetIdent(data2, value = data2@meta.data$seurat_clusters)
+dimred <- data2@reductions$umap@cell.embeddings
+clustering <- data2@active.ident
+counts <- as.matrix(data2@assays$RNA@counts[data2@assays$RNA@var.features, ])
+
+set.seed(1)
+lineages <- getLineages(data=dimred, clusterLabels=clustering)
+lineages
+
+png(file = '/home/songnsnow/Brain/230605(trajectory)/only_mg_num.png', width=1000)
+par(mfrow = c(1, 2))
+plot(dimred[, 1:2], col = pal[clustering], cex = 0.5, pch = 16)
+for (i in levels(clustering)) {
+    text(mean(dimred[clustering == i, 1]), mean(dimred[clustering == i, 2]), labels = i, font = 2)
+}
+plot(dimred[, 1:2], col = pal[clustering], cex = 0.5, pch = 16)
+lines(SlingshotDataSet(lineages), lwd = 3, col = "black")
+dev.off()
+
+curves <- getCurves(lineages, approx_points = 300, thresh = 0.01, stretch = 0.8, allow.breaks = FALSE, shrink = 0.99)
+curves
+
+png(file = '/home/songnsnow/Brain/230605(trajectory)/only_mg_line.png')
+plot(dimred, col = pal[clustering], asp = 1, pch = 16)
+lines(SlingshotDataSet(curves), lwd = 3, col = "black")
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#230619----------------------------------------------------------------------------------------
+#https://bioconductor.riken.jp/packages/3.8/bioc/vignettes/slingshot/inst/doc/slingshot.html
+
+sc1 <- as.SingleCellExperiment(data1)
+labels <- data1@meta.data$sample  #data2@meta.data$seurat_clusters
+data1 <- SetIdent(data1, value = data1@meta.data$sample)
+sample <- data1@active.ident
+
+
+sc1 <- slingshot(sc1, clusterLabels = labels, reducedDim = 'PCA')
+
+summary(sc1$slingPseudotime_1)
+
+colors <- colorRampPalette(brewer.pal(11,'Spectral')[-6])(100)
+png(file = '/home/songnsnow/Brain/230619/mg_mc_1.png')
+plot(reducedDims(sc1)$PCA, col = colors[cut(sc1$slingPseudotime_1,breaks=100)], pch=16, asp = 1)
+lines(SlingshotDataSet(sc1), lwd=2)
+dev.off()
+
+pal <- c(RColorBrewer::brewer.pal(9, "Set1"), RColorBrewer::brewer.pal(8, "Set2"))
+png(file = '/home/songnsnow/Brain/230619/mg_mc_age.png')
+plot(reducedDims(sc1)$PCA, col = pal[sample], pch=16, asp = 1)
+lines(SlingshotDataSet(sc1), lwd=2)
+legend("topright",legend=c("F4M","F21M"),fill=c("red","blue"),border="white",box.lty=0,cex=1)
+dev.off()
+
+
+
+png(file = '/home/songnsnow/Brain/230619/mg_mc_2.png')
+plot(reducedDims(sc1)$PCA, col = brewer.pal(9,'Set1')[data1@meta.data$seurat_clusters], pch=16, asp = 1)
+lines(SlingshotDataSet(sc1), lwd=2, type = 'lineages')
+dev.off()
+
+
+lin1 <- getLineages(rd, cl, start.clus = '1')
+
+
+
+
+
+
+#----------------------------------------------------------------------------------------
+sds <- slingshot(Embeddings(data1, "umap"), clusterLabels = data1$seurat_clusters, 
+                 start.clus = 4, stretch = 0)
+
+
+plot(reducedDim(sds), col = cell_colors, pch = 16, cex = 0.5)
+lines(sds, lwd = 2, type = 'lineages', col = 'black')
+library(RColorBrewer)
+library(scales)
+
+cell_pal <- function(cell_vars, pal_fun) {
+  if (is.numeric(cell_vars)) {
+    pal <- pal_fun(100)
+    return(pal[cut(cell_vars, breaks = 100)])
+  } else {
+    categories <- sort(unique(cell_vars))
+    pal <- setNames(pal_fun(length(categories)), categories)
+    return(pal[cell_vars])
+  }
+}
+
+cell_colors <- cell_pal(data1$label, brewer_pal("qual", "Set2"))
+cell_colors_clust <- cell_pal(data1$seurat_clusters, hue_pal())
+
+
+
+
+
+
+
+
+
+#----------------------------------------------------------------------------------------
+#color palette
+library(RColorBrewer)
+plot(rd1, col = brewer.pal(9,"Set1")[cl1], pch=16, asp = 1)
+
+#calculate pseudotime & lineages with Slingshot-------------------------
+sce <- slingshot(sce, clusterLabels = 'seurat_clusters', reducedDim = "PCA", allow.breaks = FALSE)
+#sds <- slingshot(Embeddings(seu, "umap"), clusterLabels = seu$seurat_clusters, 
+#                 start.clus = 4, stretch = 0)
+summary(sce$slingPseudotime_1)
+# get the lineages:
+lnes <- getLineages(reducedDim(sce,"PCA"), sce$seurat_clusters)
+lnes@lineages
+
+library(grDevices)
+colors <- colorRampPalette(brewer.pal(11,'Spectral')[-6])(100)
+plotcol <- colors[cut(sce$slingPseudotime_1, breaks=100)]
+png(file = '/home/songnsnow/Brain/230605(trajectory)/test.png')
+plot(reducedDims(sce)$PCA, col = plotcol, pch=16, asp = 1)
+lines(SlingshotDataSet(sce), lwd=2, col='black')
+dev.off()
+
+png(file = '/home/songnsnow/Brain/230605(trajectory)/test2.png')
+plot(reducedDims(sce)$PCA, col = brewer.pal(9,'Set1')[sce$GMM], pch=16, asp = 1)
+lines(SlingshotDataSet(sce), lwd=2, type = 'lineages', col = 'black')
+dev.off()
+
+
+#assign starting cluster/last cluster (optional)-------------------------
+sce <- slingshot(sce, clusterLabels = ident, reducedDim = "PCA",
+                      allow.breaks = FALSE, start.clus="2")
+# get the lineages:
+lnes <- getLineages(reducedDim(sce2,"PCA"),
+                    sce2$ident, start.clus = "2")
+lnes@lineages
+
+#visualize pseudotime/lineages
+library(Polychrome)
+library(ggbeeswarm)
+library(ggthemes)
+
+# this define the cluster color. You can change it with different color scheme.
+my_color <- createPalette(length(levels(sce$ident)), c("#010101", "#ff0000"), M=1000)
+names(my_color) <- unique(as.character(sce$ident))
+
+slingshot_df <- data.frame(colData(sce))
+
+# re-order y-axis for better figure: This should be tailored with your own cluster names
+# slingshot_df$ident = factor(slingshot_df$ident, levels=c(4,2,1,0,3,5,6))
+
+ggplot(slingshot_df, aes(x = slingPseudotime_1, y = ident, 
+                              colour = ident)) +
+    geom_quasirandom(groupOnX = FALSE) + theme_classic() +
+    xlab("First Slingshot pseudotime") + ylab("cell type") +
+    ggtitle("Cells ordered by Slingshot pseudotime")+scale_colour_manual(values = my_color)
+
+plot(reducedDims(sce)$PCA, col = my_color[as.character(sce$ident)], 
+     pch=16, 
+     asp = 1)
+legend("bottomleft",legend = names(my_color[levels(sce$ident)]),  
+       fill = my_color[levels(sce$ident)])
+lines(SlingshotDataSet(lnes), lwd=2, type = 'lineages', col = c("black"))
+
+
+#visualize
+png(file = '/home/songnsnow/Brain/230522/brain_idents.png')
+DimPlot(data1, reduction = "umap", pt.size = .1, label = TRUE)
+dev.off()
+#----------------------------------------------------------------------------------------
 

@@ -1,0 +1,234 @@
+# /usr/bin/env R
+# -----------------------------------------------------------------------
+# description : Make volcano plot, specific expression gene with bulk file
+# author      : songnsnow
+# date        : 
+# notes       : conda activate sc_pathway_r430(env)
+# -----------------------------------------------------------------------
+
+# load libraries ----------------------------------------------------------------------------
+library(tidyverse)
+library(dplyr)
+library(reshape2)
+library(readxl)
+library(gplots)
+library(ggplot2)
+
+# set working diretory-----------------------------------------------------------------------
+
+## set excel file PATH
+## import sample information
+expression_gene_ex <- "/data/project/RCC_PBMC_HWS/mRNA-bulk/result_RNAseq_excel/Expression_profile/StringTie/Expression_Profile.GRCh38.gene.xlsx"
+expression_gene <- as.data.frame(read_excel(expression_gene_ex))
+tpm_df <- expression_gene %>%
+  select("Gene_Symbol",'CSB_TPM','KJT_TPM','KSH_TPM','MYS_TPM','CSK_TPM','KYE_TPM','LHJ_TPM','YJH_TPM')
+
+# convert df to matrix (excluding Gene_Symbol column)
+data_matrix <- as.matrix(tpm_df[, -1])  # convert columns to matrix (excluding Gene_Symbol)
+
+# rlo's code - study #################################################################################################################
+
+# t-test를 위한 데이터프레임 준비
+t_test_df <- tpm_df %>%
+  select(-rownames("Gene_Symbol"))  # rowname 열 제외
+
+# 그룹1과 그룹2
+group1 <- 2:5 #NAG
+group2 <- 6:9 #AG
+
+# t-test 수행
+t_test_results <- apply(t_test_df, 1, function(row) {
+  group1_values <- as.numeric(row[group1])
+  group2_values <- as.numeric(row[group2])
+  
+  # 그룹의 데이터에 문제가 없는지 확인
+  if (length(unique(group1_values)) == 1 || length(unique(group2_values)) == 1) {
+    return(c(log2_fold_change = NaN, p_value = NaN))
+  }
+  
+  t_test <- t.test(group1_values, group2_values)
+  return(c(log2_fold_change = log2(mean(group1_values) / mean(group2_values)), p_value = t_test$p.value))
+})
+
+# t-test 결과를 데이터프레임으로 변환
+t_test_results_df <- as.data.frame(t(t_test_results))
+
+color_labels <- c("NAG", "AG", "Non-significant")
+
+volcano_plot <- ggplot(t_test_results_df, aes(x = log2_fold_change, y = -log10(p_value), color = case_when(
+  -log10(p_value) > -log10(0.05) & log2_fold_change < 0 ~ "gray80",
+  -log10(p_value) > -log10(0.05) & log2_fold_change > 0 ~ "blue",
+  TRUE ~ "red"))) +
+  geom_point() +
+#  geom_text(aes(x = log2_fold_change, y = -log10(p_value), label = rownames(t_test_results_df)), hjust = -0.2) +
+  labs(color = "Legend Title") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  labs(x = "log2(Fold Change)", y = "-log10(p-value)") +
+  scale_color_manual(values = c("red", "blue", "gray80"), labels = color_labels) +
+  ggtitle("NAG와 AG에 대하여 expression TPM level")
+
+ggsave("/data/project/RCC_PBMC_HWS/rlo/bulk_sc_analysis/volcano_plot_gene.png", volcano_plot, width = 12, height = 8, scale = 1.5)
+
+red_points <- t_test_results_df %>% 
+  filter(-log10(p_value) > -log10(0.05) & log2_fold_change > 0)
+red_points_count <- nrow(red_points)
+rownames(red_points)
+print(red_points_count)
+
+blue_points <- t_test_results_df %>% 
+  filter(-log10(p_value) > -log10(0.05) & log2_fold_change < 0)
+blue_points_count <- nrow(blue_points)
+rownames(blue_points)
+print(blue_points_count)
+
+
+###################################################################################
+##########################Euclidean distance for candidate molecules###############
+###################################################################################
+# 유클리드 거리 계산을 위한 함수 정의
+euclidean_distance <- function(x1, y1, x2, y2) {
+  sqrt((x2 - x1)^2 + (y2 - y1)^2)
+}
+
+###NASH_ KO 여부
+# Volcano plot에서 fold change와 -log10(p-value) 추출
+fold_change <- t_test_results_df$log2_fold_change
+p_value <- t_test_results_df$p_value
+
+# 유클리드 거리 계산
+distance <- euclidean_distance(fold_change, -log10(p_value), 0, 0) 
+
+# NASH 여부에 따라 데이터를 분리합니다.
+NAG <- t_test_results_df[t_test_results_df$log2_fold_change > 0 &
+  -log10(t_test_results_df$p_value) > -log10(0.05), ]
+AG <- t_test_results_df[t_test_results_df$log2_fold_change < 0 &
+  -log10(t_test_results_df$p_value) > -log10(0.05), ]
+
+# 유클리드 거리 계산
+distance_positive <- euclidean_distance(NAG$log2_fold_change, -log10(NAG$p_value), 0, 0)
+distance_negative <- euclidean_distance(AG$log2_fold_change, -log10(AG$p_value), 0, 0)
+
+# 거리가 먼 순서대로 상위 5개씩 추출
+top_10_metabolites_NAG <- NAG[order(distance_positive, decreasing = TRUE), ][1:10, ]
+top_10_metabolites_AG <- AG[order(distance_negative, decreasing = TRUE), ][1:10, ]
+
+NAG_numbers <- c(27415, 9672, 15077, 45721, 3585, 27424, 11650, 43134, 45941,21893)
+
+# 주어진 행 번호에 해당하는 행 추출
+selected_rows <- tpm_df[NAG_numbers, ]
+
+# 선택된 행 확인
+print(selected_rows$Gene_Symbol)
+
+AG_numbers <- c(32604, 22573, 37245, 46003, 4759, 2837, 2281, 20108, 25017, 9929)
+
+# 주어진 행 번호에 해당하는 행 추출
+selected_rows <- tpm_df[AG_numbers, ]
+
+# 선택된 행 확인
+print(selected_rows$Gene_Symbol)
+
+
+
+#################################################################################################################
+#Calculating with BM, metasis levels
+
+# t-test를 위한 데이터프레임 준비
+t_test_df <- tpm_df %>%
+  select(-rownames("Gene_Symbol"))  # rowname 열 제외
+
+# 그룹1과 그룹2
+group1 <- 6:7 #BM
+group2 <- 8:9 #AG
+
+# t-test 수행
+t_test_results <- apply(t_test_df, 1, function(row) {
+  group1_values <- as.numeric(row[group1])
+  group2_values <- as.numeric(row[group2])
+  
+  # 그룹의 데이터에 문제가 없는지 확인
+  if (length(unique(group1_values)) == 1 || length(unique(group2_values)) == 1) {
+    return(c(log2_fold_change = NaN, p_value = NaN))
+  }
+  
+  t_test <- t.test(group1_values, group2_values)
+  return(c(log2_fold_change = log2(mean(group1_values) / mean(group2_values)), p_value = t_test$p.value))
+})
+
+# t-test 결과를 데이터프레임으로 변환
+t_test_results_df <- as.data.frame(t(t_test_results))
+
+color_labels <- c("BM", "AG", "Non-significant")
+
+volcano_plot <- ggplot(t_test_results_df, aes(x = log2_fold_change, y = -log10(p_value), color = case_when(
+  -log10(p_value) > -log10(0.05) & log2_fold_change < 0 ~ "gray80",
+  -log10(p_value) > -log10(0.05) & log2_fold_change > 0 ~ "blue",
+  TRUE ~ "red"))) +
+  geom_point() +
+#  geom_text(aes(x = log2_fold_change, y = -log10(p_value), label = rownames(t_test_results_df)), hjust = -0.2) +
+  labs(color = "Legend Title") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  labs(x = "log2(Fold Change)", y = "-log10(p-value)") +
+  scale_color_manual(values = c("red", "blue", "gray80"), labels = color_labels) +
+  ggtitle("NAG와 AG에 대하여 expression TPM level")
+
+ggsave("/data/project/RCC_PBMC_HWS/rlo/bulk_sc_analysis/volcano_plot_BM_level.png", volcano_plot, width = 12, height = 8, scale = 1.5)
+
+red_points <- t_test_results_df %>% 
+  filter(-log10(p_value) > -log10(0.05) & log2_fold_change > 0)
+red_points_count <- nrow(red_points)
+rownames(red_points)
+print(red_points_count)
+
+blue_points <- t_test_results_df %>% 
+  filter(-log10(p_value) > -log10(0.05) & log2_fold_change < 0)
+blue_points_count <- nrow(blue_points)
+rownames(blue_points)
+print(blue_points_count)
+
+
+###################################################################################
+##########################Euclidean distance for candidate molecules###############
+###################################################################################
+# 유클리드 거리 계산을 위한 함수 정의
+euclidean_distance <- function(x1, y1, x2, y2) {
+  sqrt((x2 - x1)^2 + (y2 - y1)^2)
+}
+
+###NASH_ KO 여부
+# Volcano plot에서 fold change와 -log10(p-value) 추출
+fold_change <- t_test_results_df$log2_fold_change
+p_value <- t_test_results_df$p_value
+
+# 유클리드 거리 계산
+distance <- euclidean_distance(fold_change, -log10(p_value), 0, 0) 
+
+# NASH 여부에 따라 데이터를 분리합니다.
+NAG <- t_test_results_df[t_test_results_df$log2_fold_change > 0 &
+  -log10(t_test_results_df$p_value) > -log10(0.05), ]
+AG <- t_test_results_df[t_test_results_df$log2_fold_change < 0 &
+  -log10(t_test_results_df$p_value) > -log10(0.05), ]
+
+# 유클리드 거리 계산
+distance_positive <- euclidean_distance(NAG$log2_fold_change, -log10(NAG$p_value), 0, 0)
+distance_negative <- euclidean_distance(AG$log2_fold_change, -log10(AG$p_value), 0, 0)
+
+# 거리가 먼 순서대로 상위 5개씩 추출
+top_10_metabolites_NAG <- NAG[order(distance_positive, decreasing = TRUE), ][1:10, ]
+top_10_metabolites_AG <- AG[order(distance_negative, decreasing = TRUE), ][1:10, ]
+
+BM_numbers <- c(31533,35147,22344,31583,42859,36954,1869,2722,34551)
+
+# 주어진 행 번호에 해당하는 행 추출
+selected_rows <- tpm_df[BM_numbers, ]
+
+# 선택된 행 확인
+print(selected_rows$Gene_Symbol)
+
+AG_numbers <- c(23778, 10204, 5343, 5111, 19222, 28649, 9981, 31005, 39935)
+
+# 주어진 행 번호에 해당하는 행 추출
+selected_rows <- tpm_df[AG_numbers, ]
+
+# 선택된 행 확인
+print(selected_rows$Gene_Symbol)
