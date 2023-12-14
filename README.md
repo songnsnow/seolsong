@@ -1,3 +1,3 @@
 # seolsong
 
-This repository contains single-cell data analysis pipelines constructed by Seol Song.
+This repository contains transcriptomic(bulk/scRNA-seq) data analysis pipelines constructed by Seol Song.
