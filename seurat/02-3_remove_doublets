@@ -1,0 +1,54 @@
+#/usr/bin/env R conda seu5
+#-----------------------------------------------------------------------
+# description : Remove doublets assigned by doubletFinder
+# author      : songnsnow
+# date        : 231229
+# notes       : 
+#-----------------------------------------------------------------------
+
+# INPUT ##########################################################
+# batch 1
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/b1") # set working directory
+fn <- 'b1'  # filename
+dt <- readRDS('rds/02-2.rds')    # load SeuratObject.rds
+
+# batch 2
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/b2") # set working directory
+fn <- 'b2'  # filename
+dt <- readRDS('rds/02-2.rds')    # load SeuratObject.rds
+##################################################################
+save <- dt
+
+# load libraries ------------------------------------------------------------------------------------------
+# library(Seurat)
+# library(sctransform)
+# library(glmGamPoi)
+# library(dplyr)
+# library(patchwork)
+# library(ggplot2)
+
+# remove doublets from doubletFinder ----------------------------------------------------------------------
+Idents(object = dt) <- colnames(dt@meta.data)[length(colnames(dt@meta.data))]
+table(Idents(dt))   # check
+dt <- subset(dt, idents = c('Doublet'), invert=TRUE) #20747 / 15556 / 29874
+dt
+
+# clean up metadata
+len <- length(colnames(dt@meta.data))
+columns.to.remove <- c(colnames(dt@meta.data)[(len-4):len])     # remove columns seurat_clusters, RNA snn, and DF metadata
+for(i in columns.to.remove) {
+  dt[[i]] <- NULL
+}
+
+
+# clean up assays
+dt <- DietSeurat(dt, layers = NULL,
+  features = NULL,
+  assays = NULL,
+  dimreducs = NULL,
+  graphs = NULL,
+  misc = TRUE)
+
+dt
+  
+saveRDS(dt,'rds/02-3.rds')

@@ -1,0 +1,77 @@
+#/usr/bin/env R conda seu5
+#-----------------------------------------------------------------------
+# description : Celltyping by canonical markers
+# author      : songnsnow
+# date        : 230102
+# notes       : 
+#-----------------------------------------------------------------------
+
+# INPUT ##########################################################
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/b2") # set working directory
+# load data (skip if continued)
+dt <- readRDS('rds/03-1.rds')
+#####################################################################
+
+# load libraries
+library(Seurat)
+library(sctransform)
+library(glmGamPoi)
+library(dplyr)
+library(patchwork)
+library(ggplot2)
+
+# Celltyping ---------------------------------------------------------------------------------------------------------
+## big cell types
+dt <- SetIdent(dt, value = dt@meta.data$seurat_clusters)
+
+# FeaturePlot
+mks <- c('MS4A1','CD38','CD27','JCHAIN','CD14','FCGR3A','SELL','CX3CR1','HLA-DR','ITGB2','ITGAM','NRP1','CD1C','PPBP','CD3E','SLC4A10','FOXP3','CD4','CD8B','LEF1','IL7R','CD44','PRF1','NCAM1') 
+FeaturePlot(dt, features = mks, ncol=4, reduction='umap')
+ggsave('figures/04-1_mks.featureplot.png',width=7, height=10, scale=3)
+
+# DotPlot
+mks <- c('CD247','CD3E','CD8A','CD8B','CD4','CD14','CD16','CD56','FCGR3A','NCAM1','CD1C','NRP1','FCER1A','MS4A1','CD38','CD27','JCHAIN','PPBP')
+dp <- DotPlot(object = dt, features = mks, cluster.idents = TRUE) + coord_flip() + theme_classic() + theme(axis.text.x=element_text(angle=90))
+ggsave('figures/04-1_mks.dotplot.all.jpg',plot=dp,width=6, height=3, scale=2)
+
+
+dt <- SetIdent(dt, value = dt@meta.data$seurat_clusters)
+mks <- c('CD247','CD3E','CD8A','CD8B','CD4','SLC4A10','FOXP3','CD14','CD16','CD56','FCGR3A','NCAM1','CD1C','NRP1','FCER1A','MS4A1','CD38','CD27','JCHAIN','PPBP')
+
+dp <- DotPlot(object = dt, features = mks, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip()+ theme_classic() 
+ggsave('figures/04-1_mks.dotplot.all.png',plot=dp,width=6, height=3, scale=2)
+
+
+# assigning cell id -------------------------------------------------------------------------------------------------
+dt <- SetIdent(dt, value = dt@meta.data$seurat_clusters)
+id <- c('Classical MC',
+    'Memory B','Naive B','Classical MC','CD8+ T','NK','CD4+ T','CD8+ T','CD8+ T','Non-classical MC','CD4+ T',
+    'Classical MC','Classical MC','cDC','Classical MC','Classical MC','Plasma','MAIT','DC','Classical MC','Treg',
+    'Platelet','Classical MC','cDC','DC')
+
+lbd <- dt
+names(id) <- levels(lbd)
+dt <- RenameIdents(lbd, id)
+dt$cell.type <- dt@active.ident
+
+
+# Plot by id
+DimPlot(dt, reduction = "umap", group.by='cell.type', label=TRUE)
+ggsave('figures/04-01_b2 _processed_umap_by.celltype.png',width=5, height=5,scale=1.5)
+
+
+saveRDS(dt,'rds/04-1.rds')
+
+
+
+###########################
+obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+obj$donor.id <- NULL
+obj$pANN_0.25_0.005_4763 <- NULL
+obj$DF.classifications_0.25_0.005_4763 <- NULL
+obj$DF.classifications_0.25_0.005_4262 <- NULL
+obj$percent.mt <- NULL
+obj$nCount_SCT <- NULL
+obj$nFeature_SCT <- NULL
+obj$SCT_snn_res.1.1 <- NULL
+saveRDS(obj, '/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_2.rds')

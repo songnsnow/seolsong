@@ -1,0 +1,27 @@
+#/usr/bin/env R cb_gpu
+#-----------------------------------------------------------------------
+# description : Celltyping by canonical markers
+# author      : songnsnow
+# date        : 230105
+# notes       : don't run cellbender in the same directory at the same time
+#-----------------------------------------------------------------------
+
+# run cellbender
+# 10x tutorial: https://www.10xgenomics.com/resources/analysis-guides/background-removal-guidance-for-single-cell-gene-expression-datasets-using-third-party-tools
+
+cellbender remove-background \
+                 --cuda \
+                 --input /data/project/RCC_PBMC_HWS/workflow/singlecell/cellranger/RCC_GEX/rcc_10x/outs/raw_feature_bc_matrix.h5 \
+                 --output /data/project/RCC_PBMC_HWS/workflow/singlecell/cellbender/b2/b2_cellbender.h5 \
+                 --expected-cells 54000 \
+                 --total-droplets-included 60000 \
+                 --fpr 0.01 \
+                 --epochs 150
+
+
+# cellbender remove-background \
+#                  --cuda \
+#                  --input /data/project/RCC_PBMC_HWS/workflow/singlecell/cellranger/RCC_GEX/rcc_10x/outs/raw_feature_bc_matrix.h5 \
+#                  --output /data/project/RCC_PBMC_HWS/workflow/singlecell/cellbender/b2/b2_cellbender_2.h5 \
+#                  --fpr 0.01 \
+#                  --epochs 150

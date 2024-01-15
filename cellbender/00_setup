@@ -1,0 +1,92 @@
+#/usr/bin/env R 
+#-----------------------------------------------------------------------
+# description : CellBender env setup
+# author      : songnsnow
+# date        : 230102-230105
+# notes       : 
+#-----------------------------------------------------------------------
+
+# can be installed from git BUT need to set up GPU(??).. 
+# SO install from Docker - @root - FAILED :( i give up -----------------------------------------------------------------------------------------------
+docker pull us.gcr.io/broad-dsde-methods/cellbender:latest
+docker images
+docker run --name cellbender -v /data/project/RCC_PBMC_HWS/workflow/singlecell/cellbender:/mnt/mydata -it us.gcr.io/broad-dsde-methods/cellbender:latest /bin/bash
+docker start cellbender
+docker attach cellbender
+
+
+
+# DockerFile??
+# Start from nvidia-docker image with drivers pre-installed to use a GPU
+FROM nvcr.io/nvidia/cuda:11.7.1-base-ubuntu18.04
+
+# Copy the local cellbender repo
+ADD . /software/cellbender
+
+LABEL maintainer="Stephen Fleming <sfleming@broadinstitute.org>"
+ENV DOCKER=true \
+    CONDA_AUTO_UPDATE_CONDA=false \
+    CONDA_DIR="/opt/conda" \
+    GCLOUD_DIR="/opt/gcloud" \
+    GOOGLE_CLOUD_CLI_VERSION="397.0.0" \
+    GIT_SHA=$GIT_SHA
+ENV PATH="$CONDA_DIR/bin:$GCLOUD_DIR/google-cloud-sdk/bin:$PATH"
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates sudo \
+ && apt-get clean \
+ && sudo rm -rf /var/lib/apt/lists/* \
+# get miniconda
+ && curl -so $HOME/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-py37_23.1.0-1-Linux-x86_64.sh \
+ && chmod +x $HOME/miniconda.sh \
+ && $HOME/miniconda.sh -b -p $CONDA_DIR \
+ && rm $HOME/miniconda.sh \
+# get gsutil
+ && mkdir -p $GCLOUD_DIR \
+ && curl -so $HOME/google-cloud-cli.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-${GOOGLE_CLOUD_CLI_VERSION}-linux-x86_64.tar.gz \
+ && tar -xzf $HOME/google-cloud-cli.tar.gz -C $GCLOUD_DIR \
+ && .$GCLOUD_DIR/google-cloud-sdk/install.sh --usage-reporting false \
+ && rm $HOME/google-cloud-cli.tar.gz \
+# get compiled crcmod for gsutil
+ && conda install -y -c conda-forge crcmod \
+# install cellbender and its dependencies
+ && yes | pip install -e /software/cellbender/ \
+ && conda clean -yaf \
+ && sudo rm -rf ~/.cache/pip
+
+
+
+docker pull nvcr.io/nvidia/cuda:11.7.1-base-ubuntu18.04
+docker images
+docker run --name cuda -v /data/project/RCC_PBMC_HWS/workflow/singlecell/cellbender/cuda:/mnt/mydata -it nvcr.io/nvidia/cuda:11.7.1-base-ubuntu18.04
+docker start cuda
+docker attach cuda
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+# set up GPU
+
+
+# set up conda environment (without setting up GPU)
+
+conda create -n cellbender python=3.7
+conda activate cellbender
+conda install -c anaconda pytables
+conda install pip
+/home/songnsnow/anaconda3/envs/cellbender/bin/pip install torch
+
+git clone https://github.com/broadinstitute/CellBender.git
+/home/songnsnow/anaconda3/envs/cellbender/bin/pip install -e CellBender
+
+
+
+
+
+
+
+
+
+
+
+# set up new conda env <- actually used ------------------------------------------------------------------------------------------------------------------------------------
+conda env create -f /data/project/RCC_PBMC_HWS/workflow/singlecell/cellbender/cb_gpu.yml
+# yml file received from 수현박사님

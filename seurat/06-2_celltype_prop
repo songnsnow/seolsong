@@ -1,0 +1,51 @@
+
+# load libraries
+library(Seurat)
+library(Azimuth)
+library(SeuratData)
+library(patchwork)
+library(writexl)
+library(ggplot2)
+library(dplyr)
+
+# INPUT ##########################################################
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/") # set working directory
+# load data (skip if continued)
+dt <- readRDS('rds/06-2.rds')
+#####################################################################
+
+#patient by cluster
+df <- as.data.frame.matrix(table(dt$integrated.clusters,dt$donor.id))
+df_per <- df[1:ncol(df)]/rowSums(df[1:ncol(df)])
+df_tib <- dplyr::as_tibble(df_per, rownames = "Cluster")
+df_tib <- gather(df_tib,key='Donor.Id',value='Percentage',2:ncol(df_tib))
+df_tib <- arrange(df_tib, Cluster)
+df_tib$Cluster <- as.numeric(as.character(df_tib$Cluster))
+df_tib <- df_tib[order(df_tib$Cluster),]
+
+non_agg <- c('KJT','KSH','CSB','MYS')
+agg <- c('YJH','LHJ','KYE','CSK')
+patient_order <- c(agg,non_agg)
+
+png(file='/figures/06-2_donor.id.by.cluster.png',width=1200,res=100)
+ggplot(df_tib, aes(x=factor(Cluster),y=Percentage, fill=factor(Donor.Id, levels=patient_order))) +
+    geom_bar(position='fill',stat='identity') +
+    theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
+    coord_flip()
+dev.off()
+
+#status by cluster
+df <- as.data.frame.matrix(table(dt$integrated.clusters,dt$Status))
+df_per <- df[1:ncol(df)]/rowSums(df[1:ncol(df)])
+df_tib <- dplyr::as_tibble(df_per, rownames = "Cluster")
+df_tib <- gather(df_tib,key='Status',value='Percentage',2:ncol(df_tib))
+df_tib <- arrange(df_tib, Cluster)
+df_tib$Cluster <- as.numeric(as.character(df_tib$Cluster))
+df_tib <- df_tib[order(df_tib$Cluster),]
+
+png(file='/data/project/RCC_HWS/SS/sc/seurat/pro7.status.by.cluster.png',width=1200,res=100)
+ggplot(df_tib, aes(x=factor(Cluster),y=Percentage, fill=factor(Status, levels=c('AG','NAG')))) +
+    geom_bar(position='fill',stat='identity') +
+    theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
+    coord_flip()
+dev.off()

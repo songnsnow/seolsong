@@ -1,0 +1,7 @@
+1. Load data & add vireo labels
+2. QC & remove vireo doublets
+3. DoubletFinder & remove doublets
+4. Integration with previous data - Harmony? - check batch effects
+5. Pre-processing
+6. Celltyping by marker expression
+7. Plotting cell proportions

@@ -1,0 +1,84 @@
+#/usr/bin/env R conda Doublet
+#-----------------------------------------------------------------------
+# description : Run doubletFinder
+# author      : songnsnow
+# date        : 231229
+# notes       : updated to be compatible w/ Seurat V5
+#-----------------------------------------------------------------------
+
+# INPUT ##########################################################
+# batch 1
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/b1") # set working directory
+fn <- 'b1'  # filename
+dt <- readRDS('rds/02-1.rds')    # load SeuratObject.rds
+perc <- 0.22 # doubletFinder doublet percentage (https://kb.10xgenomics.com/hc/en-us/articles/360059124751-Why-is-the-multiplet-rate-different-for-the-Next-GEM-Single-Cell-3-LT-v3-1-assay-compared-to-other-single-cell-applications-)
+
+# batch 2 (after cb)
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/b2") # set working directory
+fn <- 'b2'  # filename
+dt <- readRDS('rds/02-1.rds')    # load SeuratObject.rds
+perc <- 0.14 # doubletFinder doublet percentage
+
+# batch 2
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/b2") # set working directory
+fn <- 'b2'  # filename
+dt <- readRDS('rds/02-1.rds')    # load SeuratObject.rds
+perc <- 0.336 # doubletFinder doublet percentage
+##################################################################
+
+# DoubletFinder -------------------------------------------------------------------------------------
+# installation (update to match seurat v5)
+remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
+# update seurat
+install.packages('Seurat')
+
+# load libraries
+library(Seurat)
+library(Matrix)
+library(fields)
+library(KernSmooth)
+library(ROCR)
+library(parallel)
+library(DoubletFinder)
+library(ggplot2)
+
+# preprocessing
+dt <- NormalizeData(dt)
+dt <- FindVariableFeatures(dt, selection.method = "vst", nfeatures = 2000)
+dt.genes<-row.names(dt)
+dt <- ScaleData(dt, features=dt.genes)
+dt <- RunPCA(dt)
+dt <- RunUMAP(dt, dims = 1:10)
+dt <- FindNeighbors(dt, reduction = 'pca', dims = 1:10)
+dt <- FindClusters(dt, resolution = 0.5)
+
+DimPlot(dt, reduction = "umap", group.by='ident', label=TRUE)
+ggsave('figures/02-2_doubletFinder_preprocessed_umap.png',width=5, height=5,scale=1)
+
+## pK Identification (no ground-truth)
+sweep.res.dt <- paramSweep(dt, PCs = 1:10, sct = FALSE)
+sweep.stats_dt <- summarizeSweep(sweep.res.dt, GT = FALSE)
+bcmvn_dt <- find.pK(sweep.stats_dt)
+
+pk_order <- bcmvn_dt[order(bcmvn_dt$BCmetric),] 
+pk_last <- tail(pk_order,1)
+pk_value <- as.numeric(as.character(pk_last[1,2]))  # get pK value with highest BCmetric value
+
+## Homotypic Doublet Proportion Estimate 
+homotypic.prop <- modelHomotypic(dt@meta.data$seurat_clusters)
+nExp_poi <- round(perc*nrow(dt@meta.data))
+nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
+
+## Run DoubletFinder with varying classification stringencies 
+dt_df <- doubletFinder(dt, PCs = 1:10, pN = 0.25, pK = pk_value, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+sec_PANN <- colnames(dt_df@meta.data)[length(colnames(dt_df@meta.data))-1]  # get PANN column name
+dt_df <- doubletFinder(dt_df, PCs = 1:10, pN = 0.25, pK = pk_value, nExp = nExp_poi.adj, reuse.pANN = sec_PANN, sct = FALSE)
+
+
+# Plot doublets on UMAP
+DF_cls <- colnames(dt_df@meta.data)[length(colnames(dt_df@meta.data))]  # get updated DF column name
+DimPlot(dt_df, reduction = "umap", group.by=DF_cls, label=TRUE)
+ggsave('figures/02-2_doubletFinder_labeled_umap.png',width=5, height=5,scale=1)
+
+
+saveRDS(dt_df, 'rds/02-2.rds')

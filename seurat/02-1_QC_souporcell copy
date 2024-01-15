@@ -1,0 +1,93 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : QC (+ remove doublets & unassigned from SouporCell)
+# author      : songnsnow
+# date        : 231229
+# notes       : 
+#-----------------------------------------------------------------------
+
+# INPUT ##########################################################
+# batch 1
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat") # set working directory
+setwd('b1')
+fn <- 'b1'  # filename
+dt <- readRDS('rds/01-2.rds')    # load labeled SeuratObject.rds
+
+# batch 2 - 26920 (after cb)
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat") # set working directory
+setwd('b2')
+fn <- 'b2'  # filename
+dt <- readRDS('rds/01-2.rds')    # load labeled SeuratObject.rds
+
+# batch 2 - 54244 (before cb)
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat") # set working directory
+setwd('b2')
+fn <- 'b2'  # filename
+dt <- readRDS('rds/01-2.rds')    # load labeled SeuratObject.rds
+##################################################################
+
+# load libraries
+library(Seurat)
+library(dplyr)
+library(SeuratData)
+library(ggplot2)
+library(patchwork)
+library(ragg)
+
+# QC ------------------------------------------------------------------------------------------------------
+dt[["percent.mt"]] <- PercentageFeatureSet(dt, pattern = "^MT-")
+dt <- PercentageFeatureSet(dt, "^RP[SL]", col.name = "percent.rb")
+dt <- PercentageFeatureSet(dt, "^HB[^(P)]", col.name = "percent.hb")
+dt <- PercentageFeatureSet(dt, "PECAM1|PF4", col.name = "percent.plat")
+
+feats <- c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb", "percent.hb", "percent.plat")
+pt <- VlnPlot(dt, group.by = "orig.ident", features = feats, pt.size = 0.1, ncol = 3) +
+    NoLegend()
+ggsave(paste('figures/02-1_qc_vlnplot_bf_', fn, '.png', sep=''),plot=pt,width=5, height=7,scale=2)
+
+FeatureScatter(dt, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", pt.size=0.5) + theme_classic()
+ggsave(paste('figures/02-1_qc_featurescatter_bf_', fn, '.png', sep=''),width=7, height=5,scale=2)
+
+save1 <- dt
+
+
+# subset -------------------------------------------------------------------------------------------------------
+# batch 1
+dt <- subset(dt, subset = nFeature_RNA > 200 & nFeature_RNA < 7500) 
+dt <- subset(dt, subset = percent.mt < 25) 
+dt <- subset(dt, subset = percent.hb < 3) # soup : 37529
+
+# batch 2 (after cb)
+dt <- subset(dt, subset = nFeature_RNA > 200 & nFeature_RNA < 2000) 
+dt <- subset(dt, subset = percent.mt < 20) 
+dt <- subset(dt, subset = percent.hb < 3) # 23840
+
+# batch 2 (before cb)
+dt <- subset(dt, subset = nFeature_RNA > 200 & nFeature_RNA < 4000) 
+dt <- subset(dt, subset = percent.mt < 25) 
+dt <- subset(dt, subset = percent.hb < 3) # soup : 53598
+
+save2 <- dt
+
+# Remove Doublets/Unassigned from SouporCell -------------------------------------------------------------------
+dt <- SetIdent(dt, value = dt@meta.data$donor.id)
+dt <- subset(dt, idents = 'NA', invert=TRUE) # 25837 / 17781 / 42257
+
+# clean up object
+columns.to.remove <- c("percent.mt", "percent.rb", "percent.hb", "percent.plat")
+for(i in columns.to.remove) {
+  dt[[i]] <- NULL
+}
+
+
+
+feats <- c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb", "percent.hb", "percent.plat")
+pt <- VlnPlot(dt, group.by = "orig.ident", features = feats, pt.size = 0.1, ncol = 3) +
+    NoLegend()
+ggsave(paste('figures/02-1_qc_vlnplot_af_', fn, '.png', sep=''),plot=pt,width=5, height=7,scale=2)
+
+FeatureScatter(dt, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", pt.size=0.5) + theme_classic()
+ggsave(paste('figures/02-1_qc_featurescatter_af_', fn, '.png', sep=''),width=7, height=5,scale=2)
+
+
+saveRDS(dt, 'rds/02-1.rds')

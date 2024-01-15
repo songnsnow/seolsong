@@ -1,0 +1,10 @@
+Idents(object = dt) <-  "integrated.cell.type"
+
+types <- c('CD4+ Tn','CD4+ Tcm','CD8+ Tn','CD8+ Tem','CD8+ Teff','MAIT','Treg','DC','pDC','Classical MC','Intermediate MC','Non-classical MC','CD56dim NK','CD56bright NK','Naive B','Memory B','Intermediate B','Plasma')
+Idents(dt) <- factor(Idents(dt), levels= types)
+
+mks <- c('CD3D','CD8A','CD8B','CD4','CCR7','LEF1','IL7R','CD44','KLRG1','PRF1','IL2RB','SLC4A10','FOXP3','TRDC','CD1C','FCER1A','NRP1','ITGB2','CD14','FCGR3A','NCAM1','MS4A1','CD38','CD27','JCHAIN','PPBP')
+
+# 'PECAM1','CCR7','CD27','BCL2','LEF1','CD44','CD28','IL7R','GZMB','IL2RB','SPN','KLRG1','PRF1','SLC4A10','FOXP3','TRDC'
+dp <- DotPlot(object = dt, features = mks) + coord_flip() + theme_classic() + theme(axis.text.x = element_text(angle = 90, hjust = 0.95)) 
+ggsave('figures/06-4_celltype_marker_dotplot.jpg',plot=dp,width=4.2, height=4, scale=1.5)

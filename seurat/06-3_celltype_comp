@@ -1,0 +1,250 @@
+library(ggpubr)
+library(tidyr)
+
+# arrange data
+
+cell.type <- c(dt$integrated.cell.type)
+subtype <- c(dt$subtype)
+donor.id <- c(dt$donor.id)
+subtype2 <- c(dt$subtype2)
+df1 <- data.frame(cell.type)
+df2 <- data.frame(subtype)
+df3 <- data.frame(donor.id)
+df4 <- data.frame(subtype2)
+
+df <- cbind(df1, df2, df3, df4)
+tb <- df
+
+order <- c('Naive B','Memory B','Intermediate B','Plasma','Classical MC','Intermediate MC','Non-classical MC','DC','pDC','Platelet','CD4+ Tn','CD4+ Tcm','CD8+ Tn','CD8+ Tem','CD8+ Teff','MAIT','Treg','CD56dim NK','CD56bright NK')
+rorder <- rev(order)
+
+sub1 <- c('AG','NAG','NORM')
+sub2 <- c('BM','LM')
+
+#####
+type.by.sub1 <- save
+
+type.by.sub1 <- as.data.frame(table(df$subtype,df$cell.type)) #count
+colnames(type.by.sub1) <- c('subtype','cell.type','perc')
+
+type.by.sub1 <- as.data.frame.matrix(table(df$subtype,df$cell.type)) #perc
+type.by.sub1 <- type.by.sub1/rowSums(type.by.sub1)
+
+type.by.sub1 <- as_tibble(type.by.sub1,rownames='subtype')
+type.by.sub1 <- gather(type.by.sub1,key='cell.type',value='perc',2:ncol(type.by.sub1))
+type.by.sub1 <- arrange(type.by.sub1, subtype)
+type.by.sub1 <- as.data.frame(type.by.sub1)
+
+#rearrange - doest work yet
+type.by.sub1.2 <- as.data.frame(table(df$id,df$cell.type)) #count
+colnames(type.by.sub1.2) <- c('donor.id','cell.type','perc')
+
+type.by.sub1.2 <- as.data.frame.matrix(table(df$subtype,df$cell.type)) #perc
+type.by.sub1.2 <- type.by.sub1/rowSums(type.by.sub1)
+
+type.by.sub1.2 <- as_tibble(type.by.sub1,rownames='subtype')
+type.by.sub1.2 <- gather(type.by.sub1,key='cell.type',value='perc',2:ncol(type.by.sub1))
+type.by.sub1.2 <- arrange(type.by.sub1, subtype)
+type.by.sub1.2 <- as.data.frame(type.by.sub1)
+
+
+
+########################################################################
+tb <- subset(tb, subtype=='AG')
+
+
+type.by.sub2 <- as.data.frame.matrix(table(tb$subtype2,tb$cell.type)) #perc
+type.by.sub2 <- type.by.sub2/rowSums(type.by.sub2)
+
+type.by.sub1
+
+type.by.sub2 <- as_tibble(type.by.sub2,rownames='subtype')
+type.by.sub2 <- gather(type.by.sub2,key='cell.type',value='perc',2:ncol(type.by.sub2))
+type.by.sub2 <- arrange(type.by.sub2, subtype)
+type.by.sub2 <- as.data.frame(type.by.sub2)
+
+######################
+type.by.id <- as.data.frame.matrix(table(df$donor.id,df$cell.type)) #perc
+type.by.id <- type.by.id/rowSums(type.by.id)
+
+type.by.id <- as_tibble(type.by.id,rownames='id')
+type.by.id <- gather(type.by.id,key='cell.type',value='perc',2:ncol(type.by.id))
+type.by.id <- arrange(type.by.id, id)
+type.by.id <- as.data.frame(type.by.id)
+
+# df_tib$Cluster <- as.numeric(as.character(df_tib$Cluster))
+# df_tib <- df_tib[order(df_tib$Cluster),]
+
+
+#####
+df <- type.by.id
+df$subtype <- NA
+df <- df[,c(4,1,2,3)]
+
+for (i in 1:nrow(df)){
+    if (df[i,2] == 'RCC.1' | df[i,2] == 'RCC.2' | df[i,2] == 'RCC.3' | df[i,2] == 'RCC.4'){
+        df[i,1] <- 'NAG'
+    }
+    else if (df[i,2] == 'HC.1' | df[i,2] == 'HC.2'){
+        df[i,1] <- 'NORM'
+    }
+    else{
+        df[i,1] <- 'AG'
+    }
+}
+
+df2 <- type.by.id
+df2<-subset(df2, id!='RCC.1' & id!='RCC.2' & id!='RCC.3' & id!='RCC.4' & id!='HC.1' & id!='HC.2')
+
+df2$subtype <- NA
+df2 <- df2[,c(4,1,2,3)]
+
+for (i in 1:nrow(df2)){
+    if (df2[i,2] == 'RCC.5' | df2[i,2] == 'RCC.6'){
+        df2[i,1] <- 'BM'
+    }
+    else if (df2[i,2] == 'RCC.7' | df2[i,2] == 'RCC.8'){
+        df2[i,1] <- 'LM'
+    }
+    else{
+        df2[i,1] <- 'RC'
+    }
+}
+
+
+# plotting function
+prop <- function(type){
+    plot <- ggplot(x=subtype,mapping=aes(y=perc,label=perc)) +
+    geom_bar(data=type.by.sub1 %>% filter(cell.type == type), 
+        position=position_dodge(),stat='identity') +
+    geom_point(data = df %>% filter(cell.type == type),
+        aes(color = id,group = subtype),size=0.3,position = position_dodge(width=0.75)) +
+    geom_point(data = df %>% filter(cell.type == type),
+        aes(group = subtype),size=0.3,position = position_dodge(width=0.75),shape=21,color='black') +
+    ylab("Percentage") +
+    theme(plot.title=element_text(hjust=0.5)) +
+    ggtitle(type)
+    return(plot)
+}
+
+prop <- function(type){
+    plot <- ggplot(mapping=aes(x=subtype,y=perc,label=perc)) +
+    geom_bar(data=type.by.sub1 %>% filter(cell.type == type), 
+        position=position_dodge(),stat='identity') +
+    geom_point(data = df %>% filter(cell.type == type),
+        aes(color = id,group = subtype),size=0.3,position = position_dodge(width=0.75)) +
+    geom_point(data = df %>% filter(cell.type == type),
+        aes(group = subtype),size=0.3,position = position_dodge(width=0.75),shape=21,color='black') +
+    ylab("Percentage") +
+    theme(plot.title=element_text(hjust=0.5)) +
+    ggtitle(type)
+    return(plot)
+}
+
+#used this
+prop <- function(type){
+    plot <- ggplot(mapping=aes(x=subtype,y=perc,label=perc)) +
+    geom_bar(data=df %>% filter(cell.type == type), 
+        position=position_dodge(),stat='identity',aes(fill=id)) +
+    geom_line(data = type.by.sub1 %>% filter(cell.type == type),
+        aes(color = perc,group = 1),color='black') +
+    geom_point(data = type.by.sub1 %>% filter(cell.type == type),
+        aes(group = subtype),size=3,position = position_dodge(width=0.75),color='black') +
+    ylab("Percentage") +
+    theme(plot.title=element_text(hjust=0.5)) +
+    ggtitle(type)
+    return(plot)
+}
+
+******************
+prop <- function(type){
+    plot <- ggplot(mapping=aes(x=subtype,y=perc,label=perc)) +
+    geom_bar(data=df2 %>% filter(cell.type == type), 
+        position=position_dodge(),stat='identity',aes(fill=id)) +
+    geom_line(data = type.by.sub2 %>% filter(cell.type == type),
+        aes(color = perc,group = 1),color='black') +
+    geom_point(data = type.by.sub2 %>% filter(cell.type == type),
+        aes(group = subtype),size=3,position = position_dodge(width=0.75),color='black') +
+    ylab("Percentage") +
+    theme(plot.title=element_text(hjust=0.5)) +
+    ggtitle(type)
+    return(plot)
+}
+
+#eh plots all dots..
+prop <- function(type){
+    plot <- ggplot(mapping=aes(x=subtype,y=perc,label=perc)) +
+    geom_bar(data=df %>% filter(cell.type == type), 
+        position=position_dodge(),stat='identity',aes(fill=id)) +
+    geom_line(data = type.by.sub1 %>% filter(cell.type == type),
+        aes(color = perc,group = 1),color='black') +
+    geom_point(data = type.by.sub1 %>% filter(cell.type == type),
+        aes(group = subtype),size=3,position = position_dodge(width=0.75),color='black') +
+    ylab("Percentage") +
+    theme(plot.title=element_text(hjust=0.5)) +
+    ggtitle(type)
+    return(plot)
+}
+
+# assign variables
+p1 <- prop('Naive B')
+p2 <- prop('Memory B')
+p3 <- prop('Intermediate B')
+p4 <- prop('Plasma')
+p5 <- prop('Classical MC')
+p6 <- prop('Non-classical MC')
+p7 <- prop('DC')
+p8 <- prop('pDC')
+p10 <- prop('CD4+ Tn')
+p11 <- prop('CD4+ Tcm')
+p12 <- prop('CD8+ Tn')
+p13 <- prop('CD8+ Tem')
+p14 <- prop('CD8+ Teff')
+p15 <- prop('MAIT')
+p16 <- prop('Treg')
+p17 <- prop('CD56bright NK')
+p18 <- prop('CD56dim NK')
+
+# save plot
+png('figures/06-3_prop_by_subtype1.png',width=1400,height=900)
+ggarrange(p1, p2, p3, p4, p5, p6, p7, p8, p10, p11, p12, p13, p14, p15, p16, p17, p18,
+     ncol=7, nrow=3, common.legend = TRUE, legend="bottom")
+dev.off()
+
+png('figures/06-3_prop_by_subtype2.png',width=1400,height=900)
+ggarrange(p1, p2, p3, p4, p5, p6, p7, p8, p10, p11, p12, p13, p14, p15, p16, p17, p18,
+     ncol=7, nrow=3, common.legend = TRUE, legend="bottom")
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+plot <- ggplot(x=subtype,mapping=aes(y=perc,label=perc)) +
+geom_bar(data=type.by.sub1 %>% filter(cell.type == 'Navie B'), 
+    position=position_dodge(),stat='identity') +
+geom_point(data = df %>% filter(cell.type == 'Navie B'),
+    aes(color = id,group = subtype),size=0.3,position = position_dodge(width=0.75)) +
+geom_point(data = df %>% filter(cell.type == 'Navie B'),
+    aes(group = subtype),size=0.3,position = position_dodge(width=0.75),shape=21,color='black') +
+ylab("Percentage") +
+theme(plot.title=element_text(hjust=0.5)) +
+ggtitle('Navie B')
+
+
+plot <- ggplot(x=subtype,mapping=aes(y=perc)) +
+geom_bar(data=type.by.sub1 %>% filter(cell.type == 'Navie B'),stat='identity')
+plot
+png('figures/06-3_prop_by_subtype1.png',width=1400,height=900)
+
+ggarrange(p5,
+     ncol=7, nrow=3, common.legend = TRUE, legend="bottom")
+dev.off()
+
+return(plot)

@@ -1,0 +1,354 @@
+#/usr/bin/env R conda seu5
+#-----------------------------------------------------------------------
+# description : Integrative analysis
+# author      : songnsnow
+# date        : 230105
+# notes       : 
+#-----------------------------------------------------------------------
+
+# INPUT ##########################################################
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/b1") # set working directory
+# load data (skip if continued)
+dt.1 <- readRDS('rds/04_2.rds')
+dt.1$batch <- 'B1'
+
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/b2") # set working directory
+# load data (skip if continued)
+dt.2 <- readRDS('rds/04-1.rds')
+
+setwd("/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/") # set working directory
+#####################################################################
+
+# load libraries
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+library(SeuratData)
+library(SeuratWrappers)
+library(Azimuth)
+library(ggplot2)
+library(patchwork)
+options(future.globals.maxSize = 1e9)
+library(sctransform)
+library(glmGamPoi)
+library(dplyr)
+
+# dietseurat for each batch data --------------------------------------------------------------------------
+DefaultAssay(object = dt.1) <- "RNA"
+DefaultAssay(object = dt.2) <- "RNA"
+dt.1[['SCT']] <- NULL
+dt.2[['SCT']] <- NULL
+
+# dt.1 <- CreateSeuratObject(counts = dt.1@assays$RNA$counts, meta.data = dt.1@meta.data)
+# dt.2 <- CreateSeuratObject(counts = dt.2@assays$RNA$counts, meta.data = dt.2@meta.data)
+
+
+# change RCC.9 to RC
+df <- as.data.frame(dt.2@meta.data)
+df[ ,c('orig.ident', 'nCount_RNA','nFeature_RNA','subtype','seurat_clusters','cell.type','predicted.celltype.l1','predicted.celltype.l2','predicted.celltype.l3','batch','integrated.clusters')] <- list(NULL)
+df$cluster <- as.character(df$cluster)
+
+NORM <- c("HC.1", "HC.2")
+NAG <- c("RCC.1", "RCC.2","RCC.3", "RCC.4")
+BM <- c("RCC.5", "RCC.6")
+LM <- c("RCC.7", "RCC.8")
+RC <- c("RCC.9")
+
+for (i in 1:nrow(df)) {
+  if(df[i, "donor.id"] %in% NAG) {
+    subtype <- "NAG"
+  }
+  else if (df[i, "donor.id"] %in% LM) {
+    subtype <- "LM"
+  }
+  else if (df[i, "donor.id"] %in% BM) {
+    subtype <- "BM"
+  }
+  else if (df[i, "donor.id"] %in% NORM) {
+    subtype <- "NORM"
+  }
+  else if (df[i, "donor.id"] %in% RC) {
+    subtype <- "RC"
+  }
+  else {
+    subtype <- "NA"
+  }
+  df[i, "subtype2"]  <- subtype
+}
+
+df$donor.id <- NULL
+dt.2 <- AddMetaData(dt.2, metadata=df)
+
+
+# perform integration with standard anlaysis workflow -----------------------------------------------------
+obj <- merge(x=dt.1,y=dt.2)
+obj[["RNA"]] <- JoinLayers(obj[["RNA"]])
+obj[["RNA"]] <- split(obj[["RNA"]], f = obj$batch)
+
+DefaultAssay(object = obj) <- "RNA"
+
+obj <- NormalizeData(obj) %>%
+  FindVariableFeatures() %>%
+  ScaleData() %>%
+  RunPCA(npcs = 50, verbose = F) %>%
+  RunUMAP(dims = 1:50, reduction = "pca", reduction.name = "umap.unintegrated")
+
+DimPlot(obj, reduction = "umap.unintegrated", group.by = c("batch", "seurat_clusters"))
+ggsave('figures/05-1_umap_unintegrated.png',width=10, height=5,scale=1.5)
+
+obj <- IntegrateLayers(
+  object = obj,
+  method = HarmonyIntegration,
+  orig.reduction = "pca",
+  new.reduction = 'harmony', 
+  verbose = F
+)
+
+# re-join layers after integration
+obj[["RNA"]] <- JoinLayers(obj[["RNA"]])
+
+obj <- FindNeighbors(obj, dims = 1:50, reduction = "harmony")
+obj <- FindClusters(obj, resolution = 1.4, cluster.name = "integrated.clusters")
+obj <- RunUMAP(obj, dims = 1:50, reduction = "harmony")
+
+
+# Visualization
+DimPlot(obj, reduction = "umap", group.by = c("batch", "predicted.celltype.l2"))
+ggsave('figures/05-1_umap_integrated.png',width=10, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", split.by = "batch")
+ggsave('figures/05-1_umap_integrated_splitby.batch.png',width=10, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", split.by = "donor.id", ncol=4)
+ggsave('figures/05-1_umap_integrated_splitby.id.png',width=10, height=5,scale=1.5)
+
+###
+DimPlot(obj, reduction = "umap", label=TRUE)
+ggsave('figures/05-1_harmony_umap_by.cluster.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='donor.id')
+ggsave('figures/05-1_harmony_umap_by.id.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='subtype')
+ggsave('figures/05-1_harmony_umap_by.subtype.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='subtype2')
+ggsave('figures/05-1_harmony_umap_by.subtype2.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='batch')
+ggsave('figures/05-1_harmony_umap_by.batch.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='predicted.celltype.l1',label=TRUE)
+ggsave('figures/05-1_harmony_umap_by.celltype1.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='predicted.celltype.l2',label=TRUE)
+ggsave('figures/05-1_harmony_umap_by.celltype2.png',width=9, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='predicted.celltype.l3')
+ggsave('figures/05-1_harmony_umap_by.celltype3.png',width=5, height=5,scale=1.5)
+###
+
+save <- obj
+saveRDS(save,'rds/05-1-2.rds')
+
+/////
+
+# identify conserved cell type markers
+# NEEDS TO BE FIXED AND SET ORDER CORRECTLY
+Idents(ifnb) <- factor(Idents(ifnb), levels = c("pDC", "Eryth", "Mk", "DC", "CD14 Mono", "CD16 Mono",
+    "B Activated", "B", "CD8 T", "NK", "T activated", "CD4 Naive T", "CD4 Memory T"))
+
+markers.to.plot <- c("CD3D", "CREM", "HSPH1", "SELL", "GIMAP5", "CACYBP", "GNLY", "NKG7", "CCL5",
+    "CD8A", "MS4A1", "CD79A", "MIR155HG", "NME1", "FCGR3A", "VMO1", "CCL2", "S100A9", "HLA-DQA1",
+    "GPR183", "PPBP", "GNG11", "HBA2", "HBB", "TSPAN13", "IL3RA", "IGJ", "PRSS57")
+DotPlot(ifnb, features = markers.to.plot, cols = c("blue", "red"), dot.scale = 8, split.by = "stim") +
+    RotatedAxis()
+
+
+# identify DEG across conditions
+library(ggplot2)
+library(cowplot)
+theme_set(theme_cowplot())
+
+aggregate_ifnb <- AggregateExpression(ifnb, group.by = c("seurat_annotations", "stim"), return.seurat = TRUE)
+genes.to.label = c("ISG15", "LY6E", "IFI6", "ISG20", "MX1", "IFIT2", "IFIT1", "CXCL10", "CCL8")
+
+p1 <- CellScatter(aggregate_ifnb, "CD14 Mono_CTRL", "CD14 Mono_STIM", highlight = genes.to.label)
+p2 <- LabelPoints(plot = p1, points = genes.to.label, repel = TRUE)
+
+p3 <- CellScatter(aggregate_ifnb, "CD4 Naive T_CTRL", "CD4 Naive T_STIM", highlight = genes.to.label)
+p4 <- LabelPoints(plot = p3, points = genes.to.label, repel = TRUE)
+
+p2 + p4
+
+
+
+
+    
+
+
+# perform integration with sct data ---------------------------------------------------------------------------------------------------
+DefaultAssay(object = obj) <- "RNA"
+
+obj[["RNA"]] <- JoinLayers(obj[["RNA"]])
+obj[["RNA"]] <- split(obj[["RNA"]], f = obj$batch)
+
+options(future.globals.maxSize = 3e+09)
+obj <- SCTransform(obj)
+obj <- RunPCA(obj, npcs = 50, verbose = F)
+obj <- IntegrateLayers(
+  object = obj,
+  method = HarmonyIntegration,
+  orig.reduction = "pca",
+  new.reduction = 'harmony', 
+  normalization.method = "SCT",
+  verbose = F
+)
+obj <- FindNeighbors(obj, dims = 1:50, reduction = "harmony") # integrated.dr?
+obj <- FindClusters(obj, resolution = 1.2, cluster.name = "integrated.clusters")
+obj <- RunUMAP(obj, dims = 1:50, reduction = "harmony")
+obj[["RNA"]] <- JoinLayers(obj[["RNA"]])
+
+
+# Plotting
+# dt <- SetIdent(dt, value = dt@meta.data$seurat_clusters)
+DimPlot(obj, reduction = "umap", label=TRUE)
+ggsave('figures/05-1_harmony_sct_umap_by.cluster.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='donor.id')
+ggsave('figures/05-1_harmony_sct_umap_by.id.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='subtype')
+ggsave('figures/05-1_harmony_sct_umap_by.subtype.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='subtype2')
+ggsave('figures/05-1_harmony_sct_umap_by.subtype2.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='batch')
+ggsave('figures/05-1_harmony_sct_umap_by.batch.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='predicted.celltype.l1',label=TRUE)
+ggsave('figures/05-1_harmony_sct_umap_by.celltype1.png',width=5, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='predicted.celltype.l2',label=TRUE)
+ggsave('figures/05-1_harmony_sct_umap_by.celltype2.png',width=9, height=5,scale=1.5)
+
+DimPlot(obj, reduction = "umap", group.by='predicted.celltype.l3')
+ggsave('figures/05-1_harmony_sct_umap_by.celltype3.png',width=5, height=5,scale=1.5)
+
+
+saveRDS(dt,'rds/05-1_2.rds')
+
+
+
+
+
+# AnnData (ignore this step; just for reference) ---------------------------------------------------------------------------------------
+# load in the pbmc systematic comparative analysis dataset
+obj <- LoadData("pbmcsca")
+obj <- subset(obj, nFeature_RNA > 1000)
+obj <- RunAzimuth(obj, reference = "pbmcref")
+# currently, the object has two layers in the RNA assay: counts, and data
+obj
+
+obj[["RNA"]] <- split(obj[["RNA"]], f = obj$Method)
+obj
+
+obj <- NormalizeData(obj)
+obj <- FindVariableFeatures(obj)
+obj <- ScaleData(obj)
+obj <- RunPCA(obj)
+
+obj <- FindNeighbors(obj, dims = 1:30, reduction = "pca")
+obj <- FindClusters(obj, resolution = 2, cluster.name = "unintegrated_clusters")
+
+obj <- RunUMAP(obj, dims = 1:30, reduction = "pca", reduction.name = "umap.unintegrated")
+# visualize by batch and cell type annotation
+# cell type annotations were previously added by Azimuth
+DimPlot(obj, reduction = "umap.unintegrated", group.by = c("Method", "predicted.celltype.l2"))
+# ---------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+# integration methods
+obj <- IntegrateLayers(
+  object = obj, method = CCAIntegration,
+  orig.reduction = "pca", new.reduction = "integrated.cca",
+  verbose = FALSE
+)
+
+obj <- IntegrateLayers(
+  object = obj, method = RPCAIntegration,
+  orig.reduction = "pca", new.reduction = "integrated.rpca",
+  verbose = FALSE
+)
+
+obj <- IntegrateLayers(
+  object = obj, method = HarmonyIntegration,
+  orig.reduction = "pca", new.reduction = "harmony",
+  verbose = FALSE
+)
+
+obj <- IntegrateLayers(
+  object = obj, method = FastMNNIntegration,
+  new.reduction = "integrated.mnn",
+  verbose = FALSE
+)
+
+obj <- IntegrateLayers(
+  object = obj, method = scVIIntegration,
+  new.reduction = "integrated.scvi",
+  conda_env = "../miniconda3/envs/scvi-env", verbose = FALSE
+)
+
+# visualize & cluster datasets for any of the integration methods
+obj <- FindNeighbors(obj, reduction = "integrated.cca", dims = 1:30)
+obj <- FindClusters(obj, resolution = 2, cluster.name = "cca_clusters")
+obj <- RunUMAP(obj, reduction = "integrated.cca", dims = 1:30, reduction.name = "umap.cca")
+p1 <- DimPlot(
+  obj,
+  reduction = "umap.cca",
+  group.by = c("Method", "predicted.celltype.l2", "cca_clusters"),
+  combine = FALSE, label.size = 2
+)
+
+obj <- FindNeighbors(obj, reduction = "integrated.scvi", dims = 1:30)
+obj <- FindClusters(obj, resolution = 2, cluster.name = "scvi_clusters")
+obj <- RunUMAP(obj, reduction = "integrated.scvi", dims = 1:30, reduction.name = "umap.scvi")
+p2 <- DimPlot(
+  obj,
+  reduction = "umap.scvi",
+  group.by = c("Method", "predicted.celltype.l2", "scvi_clusters"),
+  combine = FALSE, label.size = 2
+)
+
+wrap_plots(c(p1, p2), ncol = 2, byrow = F)
+
+
+p1 <- VlnPlot(
+  obj,
+  features = "rna_CD8A", group.by = "unintegrated_clusters"
+) + NoLegend() + ggtitle("CD8A - Unintegrated Clusters")
+p2 <- VlnPlot(
+  obj, "rna_CD8A",
+  group.by = "cca_clusters"
+) + NoLegend() + ggtitle("CD8A - CCA Clusters")
+p3 <- VlnPlot(
+  obj, "rna_CD8A",
+  group.by = "scvi_clusters"
+) + NoLegend() + ggtitle("CD8A - scVI Clusters")
+p1 | p2 | p3
+
+
+obj <- RunUMAP(obj, reduction = "integrated.rpca", dims = 1:30, reduction.name = "umap.rpca")
+p4 <- DimPlot(obj, reduction = "umap.unintegrated", group.by = c("cca_clusters"))
+p5 <- DimPlot(obj, reduction = "umap.rpca", group.by = c("cca_clusters"))
+p6 <- DimPlot(obj, reduction = "umap.scvi", group.by = c("cca_clusters"))
+p4 | p5 | p6
+
+
+# once integrative analysis is finished, you can rejoin the layers
+obj <- JoinLayers(obj)
+obj
+
+  

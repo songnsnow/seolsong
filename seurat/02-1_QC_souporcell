@@ -1,0 +1,78 @@
+library(ggplot2)
+
+###################
+#######b1##########
+###################
+# QC ------------------------------------------------------------------------------------------------------
+dt.1[["percent.mt"]] <- PercentageFeatureSet(dt.1, pattern = "^MT-")
+dt.1 <- PercentageFeatureSet(dt.1, "^RP[SL]", col.name = "percent.rb")
+dt.1 <- PercentageFeatureSet(dt.1, "^HB[^(P)]", col.name = "percent.hb")
+dt.1 <- PercentageFeatureSet(dt.1, "PECAM1|PF4", col.name = "percent.plat")
+
+feats <- c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb", "percent.hb", "percent.plat")
+pt <- VlnPlot(dt.1, group.by = "orig.ident", features = feats, pt.size = 0.1, ncol = 3) +
+    NoLegend()
+ggsave('/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/figures/qc_vlnplot_bf_b1.png',plot=pt,width=5, height=7,scale=2)
+
+FeatureScatter(dt.1, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", pt.size=0.5)
+ggsave('/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/figures/qc_featurescatter_bf_b1.png',width=7, height=5,scale=2)
+
+save1 <- dt.1
+
+# subset
+dt.1 <- subset(dt.1, subset = nFeature_RNA > 200 & nFeature_RNA < 7500) 
+dt.1 <- subset(dt.1, subset = percent.mt < 25) 
+dt.1 <- subset(dt.1, subset = percent.hb < 3) # soup : 37529
+
+save2 <- dt.1
+
+# Remove Doublets/Unassigned from Vireo -------------------------------------------------------------------
+dt.1 <- SetIdent(dt.1, value = dt.1@meta.data$donor.id)
+dt.1 <- subset(dt.1, idents = 'unassigned', invert=TRUE) # 37529
+
+# clean up object
+dt.1$percent.mt <- NULL
+dt.1$percent.rb <- NULL
+dt.1$percent.hb <- NULL
+dt.1$percent.plat <- NULL
+
+saveRDS(dt.1, '/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/rds/seurat_b1.rds')
+
+######################
+########b2############
+######################
+
+# QC ------------------------------------------------------------------------------------------------------
+dt.2[["percent.mt"]] <- PercentageFeatureSet(dt.2, pattern = "^MT-")
+dt.2 <- PercentageFeatureSet(dt.2, "^RP[SL]", col.name = "percent.rb")
+dt.2 <- PercentageFeatureSet(dt.2, "^HB[^(P)]", col.name = "percent.hb")
+dt.2 <- PercentageFeatureSet(dt.2, "PECAM1|PF4", col.name = "percent.plat")
+
+feats <- c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb", "percent.hb", "percent.plat")
+pt <- VlnPlot(dt.2, group.by = "orig.ident", features = feats, pt.size = 0.1, ncol = 3) +
+    NoLegend()
+ggsave('/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/figures/qc_vlnplot_bf_b2.png',plot=pt,width=5, height=7,scale=2)
+
+FeatureScatter(dt.2, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", pt.size=0.5)
+ggsave('/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/figures/qc_featurescatter_bf_b2.png',width=7, height=5,scale=2)
+
+save1 <- dt.2
+
+# subset
+dt.2 <- subset(dt.2, subset = nFeature_RNA > 200 & nFeature_RNA < 7500) #soup : 54244 -> 54242
+dt.2 <- subset(dt.2, subset = percent.mt < 25) # soup : 54242 -> 54102
+dt.2 <- subset(dt.2, subset = percent.hb < 3) # soup : 54102 -> 53669
+
+save2 <- dt.2
+
+# Remove Doublets/Unassigned from Vireo -------------------------------------------------------------------
+dt.2 <- SetIdent(dt.2, value = dt.2@meta.data$donor.id)
+dt.2 <- subset(dt.2, idents = 'unassinged', invert=TRUE) # 53669 -> 42287
+
+# clean up object
+dt.2$percent.mt <- NULL
+dt.2$percent.rb <- NULL
+dt.2$percent.hb <- NULL
+dt.2$percent.plat <- NULL
+
+saveRDS(dt.2, '/data/project/RCC_PBMC_HWS/workflow/singlecell/seurat/rds/seurat_b2.rds')
