@@ -6,8 +6,8 @@
 # notes       : 
 #-----------------------------------------------------------------------
 
-# can be installed from git BUT need to set up GPU(??).. 
-# SO install from Docker - @root - FAILED :( i give up -----------------------------------------------------------------------------------------------
+# can be installed from git BUT need to set up GPU.. 
+# SO install from Docker - @root - XXX -----------------------------------------------------------------------------------------------
 docker pull us.gcr.io/broad-dsde-methods/cellbender:latest
 docker images
 docker run --name cellbender -v /data/project/RCC_PBMC_HWS/workflow/singlecell/cellbender:/mnt/mydata -it us.gcr.io/broad-dsde-methods/cellbender:latest /bin/bash
