@@ -1,0 +1,26 @@
+# set working directory
+setwd('/home/ubuntu/analysis/scRepertoire')
+
+# load libraries
+library(scRepertoire)
+
+# load data
+s1 <- read.csv("data/uCN_1.csv")
+s2 <- read.csv("data/uCN_2.csv")
+s3 <- read.csv("data/uCN_3.csv")
+s4 <- read.csv("data/dCN_1.csv")
+s5 <- read.csv("data/dCN_2.csv")
+s6 <- read.csv("data/dCN_3.csv")
+
+
+contig_list <- list(s1, s2, s3, s4, s5, s6)
+
+# combine contigs into clones
+combined.TCR <- combineTCR(contig_list, 
+                           samples = c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2", 
+                                            "dCN_Init","dCN_Nivo/ipi_1", "dCN_Nivo_maint"),
+                           removeNA = FALSE, 
+                           removeMulti = FALSE, 
+                           filterMulti = FALSE)
+
+head(combined.TCR[[1]])

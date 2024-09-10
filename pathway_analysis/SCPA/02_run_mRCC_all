@@ -1,0 +1,129 @@
+#/usr/bin/env
+#-----------------------------------------------------------------------
+# description : SCPA analysis
+# author      : songnsnow
+# date        : 240901
+# notes       : 
+#-----------------------------------------------------------------------
+# Set directory
+setwd('/home/ubuntu/analysis/scpa')
+
+# Load packages
+library(SCPA)
+library(tidyverse)
+library(msigdbr)
+library(Seurat)
+library(magrittr)
+library(dplyr)
+library(ComplexHeatmap)
+
+# Load SeuratObject
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/03-1.rds')
+
+# Getting gene sets
+pathways <- msigdbr("Homo sapiens", "H") %>%
+  format_pathways()
+
+# Idents(dt) <- dt$subgroup
+# dt_uCN <- subset(dt, idents='uCN')
+# dt_dCN <- subset(dt, idents='dCN')
+
+# uCN <- seurat_extract(dt,
+#                           meta1 = "subgroup", value_meta1 = "uCN")
+
+# Comparison within SeuratObject (more than 2 populations)
+
+## uCN #################################################################################
+scpa_out_1 <- compare_seurat(dt,
+                           group1 = "celltype.l1", 
+                           group1_population = c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma'),
+                           group2 = 'subgroup',
+                           group2_population = 'uCN',
+                           pathways = pathways,
+                           downsample = 1000
+                          #  parallel = TRUE
+                           )
+
+scpa_out_2 <- compare_seurat(dt,
+                           group1 = "celltype.l1", 
+                           group1_population = c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma'),
+                           group2 = 'subgroup',
+                           group2_population = 'dCN',
+                           pathways = pathways,
+                           downsample = 1000
+                          #  parallel = TRUE
+                           )
+
+# For faster analysis with parallel processing, use 'parallel = TRUE' and 'cores = x' arguments
+
+# Extract qvals
+scpa_out <- scpa_out_1
+
+# Rename qval column in scpa_out to qval.x
+scpa_out <- scpa_out %>%
+  rename(qval.x = qval)
+
+# Rename qval column in scpa_out_2 to qval.y
+scpa_out_2 <- scpa_out_2 %>%
+  rename(qval.y = qval)
+
+# Merge scpa_out and scpa_out_2 by the 'Pathway' column
+scpa_out <- merge(scpa_out, scpa_out_2[, c("Pathway", "qval.y")], by = "Pathway", all.x = TRUE)
+
+# Display the resulting data frame
+head(scpa_out)
+
+png('figures/02_uCN_heatmap.png', width=1200, height=1800, unit = "px", res = 300)
+plot_heatmap(scpa_out,
+# highlight_pathways = "myc",
+               hm_colors = c("#5ab0f2", "white", "#be67c9"),
+               column_names = c("uCN_Init vs uCN_CN", "uCN_CN vs uCN_Nivo/ipi_2"),
+               cluster_columns = F,
+               show_row_names = T)
+dev.off()
+
+
+## dCN #################################################################################
+scpa_out_1 <- compare_seurat(dt,
+                           group1 = "subgroup_2", 
+                           group1_population = c("dCN_Init","dCN_Nivo/ipi_1"),
+                           pathways = pathways,
+                           downsample = 1000
+                          #  parallel = TRUE
+                           )
+
+scpa_out_2 <- compare_seurat(dt,
+                           group1 = "subgroup_2", 
+                           group1_population = c("dCN_Nivo/ipi_1", "dCN_Nivo_maint"),
+                           pathways = pathways,
+                           downsample = 1000
+                          #  parallel = TRUE
+                           )
+
+# For faster analysis with parallel processing, use 'parallel = TRUE' and 'cores = x' arguments
+
+# Extract qvals
+scpa_out <- scpa_out_1
+
+# Rename qval column in scpa_out to qval.x
+scpa_out <- scpa_out %>%
+  rename(qval.x = qval)
+
+# Rename qval column in scpa_out_2 to qval.y
+scpa_out_2 <- scpa_out_2 %>%
+  rename(qval.y = qval)
+
+# Merge scpa_out and scpa_out_2 by the 'Pathway' column
+scpa_out <- merge(scpa_out, scpa_out_2[, c("Pathway", "qval.y")], by = "Pathway", all.x = TRUE)
+
+# Display the resulting data frame
+head(scpa_out)
+
+png('figures/02_dCN_heatmap.png', width=1200, height=1800, unit = "px", res = 300)
+plot_heatmap(scpa_out,
+# highlight_pathways = "myc",
+               hm_colors = c("#5ab0f2", "white", "#be67c9"),
+               column_names = c("dCN_Init vs dCN_Nivo/ipi_1", "dCN_Nivo/ipi_1 vs dCN_Nivo_maint"),
+               cluster_columns = F,
+               show_row_names = T)
+dev.off()

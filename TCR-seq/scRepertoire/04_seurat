@@ -1,0 +1,82 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : add tcr data
+# author      : songnsnow
+# date        : 240718
+# notes       : https://ucdavis-bioinformatics-training.github.io/2020-Advanced_Single_Cell_RNA_Seq/data_analysis/VDJ_Analysis_fixed
+#-----------------------------------------------------------------------
+setwd("/home/ubuntu/analysis/scRepertoire")   # set working directory
+getwd()     # check
+
+# load packages
+library(Seurat)
+library(scRepertoire)
+
+# load data
+dt <- readRDS('data/04-2.rds')
+
+# load data
+s1 <- read.csv("data/B1.csv")
+s2 <- read.csv("data/B2.csv")
+s3 <- read.csv("data/B3.csv")
+
+# Add the suffixes to the barcodes column
+s1$barcodes <- paste0(s1$barcodes, "_1")
+s2$barcodes <- paste0(s2$barcodes, "_2")
+s3$barcodes <- paste0(s3$barcodes, "_3")
+
+contig_list <- list(s1, s2, s3)
+
+# combine contigs into clones
+combined.TCR <- combineTCR(contig_list, 
+                    samples = c("B1","B2","B3"),
+                    removeNA = FALSE, 
+                    removeMulti = FALSE, 
+                    filterMulti = FALSE)
+
+# convert SeuratObjects to SCE
+sce <- Seurat::as.SingleCellExperiment(dt)
+
+# Add vdj data each batch SCE
+sce <- combineExpression(combined.TCR, 
+                         sce, 
+                         cloneCall="gene", 
+                         group.by = "sample", 
+                         proportion = TRUE)
+
+# Plotting
+#Define color palette 
+colorblind_vector <- hcl.colors(n=7, palette = "inferno", fixup = TRUE)
+
+plotUMAP(sce, colour_by = "cloneSize") +
+    scale_color_manual(values=rev(colorblind_vector[c(1,3,5,7)]))
+ggsave(paste('figures/03_UMAP_clones.png',sep=''),width=10, height=5,scale=1)
+
+
+
+# SEURAT
+rownames(dt_B1@meta.data) <- dt_B1$orig.bc
+rownames(dt_B2@meta.data) <- dt_B2$orig.bc
+rownames(dt_B3@meta.data) <- dt_B3$orig.bc
+
+scRep1 <- combineExpression(s1.TCR, 
+                            dt_B1, 
+                            cloneCall="gene", 
+                            group.by = "sample", 
+                            proportion = FALSE, 
+                            cloneSize=c(Single=1, Small=5, Medium=20, Large=100, Hyperexpanded=500))
+
+
+
+Seurat::DimPlot(scRep, group.by = "cloneSize") +
+    scale_color_manual(values=rev(colorblind_vector[c(1,3,4,5,7)]))
+ggsave(paste('figures/03_UMAP_clones.png',sep=''),width=10, height=5,scale=1)
+
+
+
+
+
+StartracDiversity(scRep_example, 
+                  type = "subgroup_2", 
+                  group.by = "subgroup")
+ggsave(paste('figures/02_StartracDiversity.png',sep=''),width=7, height=3,scale=1)

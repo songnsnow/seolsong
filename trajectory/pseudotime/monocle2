@@ -1,0 +1,170 @@
+#/usr/bin/env monocle2
+#-----------------------------------------------------------------------
+# description : Calculate pseudotime with singlecell file
+# author      : songnsnow
+# date        : 240731
+# notes       : install seurat object version 2.3
+#-----------------------------------------------------------------------
+
+#start Monocle2
+library(Seurat)
+# install.packages('tidyverse')
+library(tidyverse)
+library(dplyr)
+# BiocManager::install("RBGL")
+# BiocManager::install("biocViews")
+library(monocle)
+options(Seurat.object.assay.version = "v4") 
+library(ggplot2)
+library(ggridges)
+library(VGAM)
+library(magrittr)
+library(tidyr)
+
+
+# setting---------------------------------------------------------
+setwd('/home/ubuntu/analysis/monocle2')
+data <- readRDS('/home/ubuntu/analysis/scRepertoire/data/CD4.rds')
+
+
+# DEG ------------------------------------------------------------
+Idents(data) <- 'seurat_clusters'
+DefaultAssay(data) <- 'RNA'
+
+# mk <- FindAllMarkers(data, assay = 'RNA', min.pct = 0.01, min.diff.pct = 0.1, only.pos = T)
+save <- mk
+mk <- FindAllMarkers(data, assay = 'RNA', min.diff.pct = 0.01, only.pos = T)
+save_0.01 <- mk
+saveRDS(mk,'/home/ubuntu/analysis/monocle2/CD4_DEG_clusters.rds')
+ 
+
+# monocle2 -------------------------------------------------------
+cds <- as.CellDataSet(data)
+
+cds <- estimateSizeFactors(cds)
+cds <- estimateDispersions(cds)
+
+## ordering cell
+# mk <- readRDS('/home/ubuntu/analysis/monocle2/CD4_DEG_clusters.rds')
+mk <- mk[which(mk$cluster %in% unique(data$celltype.l2)), ]
+sel.gene <- unique(mk$gene)
+cds <- monocle::setOrderingFilter(cds, sel.gene)
+
+## dimension reduciton
+cds <- monocle::reduceDimension(cds, method = 'DDRTree')
+
+## ordering cells
+cds <- monocle::orderCells(cds)
+
+## ordering cells by assigning root nodes
+GM_state <- function(cds){
+  if (length(unique(cds$subgroup_2)) > 1){
+    T0_counts <- table(cds$subgroup_2, cds$cluster)[,"CTRL"]
+    return(as.numeric(names(T0_counts)[which
+                                       (T0_counts == max(T0_counts))]))
+  } else {
+    return (1)
+  }
+}
+cds <- monocle::orderCells(cds, root_state =  GM_state(cds))
+
+# 결과 시각화
+png('figures/01_CD4_traj.png')
+plot_cell_trajectory(cds, color_by = "State")
+dev.off()
+
+png('figures/01_CD4_traj_bysubgroup2.png')
+monocle::plot_cell_trajectory(cds, color_by = "subgroup_2")  + facet_wrap(~celltype.l2)
+dev.off()
+
+saveRDS(cds, 'trajectory/pseudotime/rds/TNK_subset.rds')
+
+
+
+
+
+
+############################# subset
+  # CD4+ CTL 세포만 필터링
+  cd8_tem_cells <- subset(data, subset = azimuth.cell.type == "CD4+ CTL")
+
+  # monocle 2로 변환
+  cds <- as.CellDataSet(cd8_tem_cells)
+
+  # Size factors와 dispersions 추정
+  cds <- estimateSizeFactors(cds)
+  cds <- estimateDispersions(cds)
+
+  # 셀 오더링에 사용할 유전자 선택 (TNK 전체 유전자 집합 사용)
+  mk <- readRDS('trajectory/pseudotime/rds/T_SCT_DEG_clusters.rds')
+  sel.gene <- unique(mk$gene)
+  cds <- monocle::setOrderingFilter(cds, sel.gene)
+
+  # 차원 축소
+  cds <- monocle::reduceDimension(cds, method = 'DDRTree') %>% orderCells()
+
+  # 루트 노드 할당
+  GM_state <- function(cds){
+    if (length(unique(cds$State)) > 1){
+      T0_counts <- table(cds$State, cds$subtype)[,"CTRL"]
+      return(as.numeric(names(T0_counts)[which(T0_counts == max(T0_counts))]))
+    } else {
+      return (1)
+    }
+  }
+  cds <- monocle::orderCells(cds, root_state = GM_state(cds))
+
+  # 결과 시각화
+  png('trajectory/pseudotime/00_figures/02_monocle2_CD4CTL_state_trajectory.png')
+  plot_cell_trajectory(cds, color_by = "State")
+  dev.off()
+
+  png('trajectory/pseudotime/00_figures/02_monocle2_CD4CTL_subtype_trajectory_state.png')
+  monocle::plot_cell_trajectory(cds, color_by = "subtype")  + facet_wrap(~azimuth.cell.type)
+  dev.off()
+
+  png('trajectory/pseudotime/00_figures/02_monocle2_CD4CTL_subtype2_trajectory_state.png')
+  monocle::plot_cell_trajectory(cds, color_by = "subtype2")  + facet_wrap(~azimuth.cell.type)
+  dev.off()
+
+  png('trajectory/pseudotime/00_figures/02_monocle2_CD4CTL_subtype_trajectory_branch1.png')
+  monocle::plot_genes_branched_pseudotime(cds, branch_point = 1, color_by = 'subtype')
+  dev.off()
+
+######################################################### Gene 에 대해서 구하기 #####################################################
+  diff_test_res <- differentialGeneTest(cds[sel.gene,],
+              fullModelFormulaStr = "~sm.ns(Pseudotime)")
+  sig_gene_names <- row.names(subset(diff_test_res, qval < 0.1))
+  
+  png(file = 'trajectory/pseudotime/00_figures/CD4+CTL_DEG_gene_heatmap.png', width = 10, height = 8, units = "in", res = 300)
+  plot_pseudotime_heatmap(cds[sig_gene_names,],
+                          num_clusters = 3,
+                          cores = 1,
+                          show_rownames = TRUE)
+  dev.off()
+
+###### branch_points <- cds@auxOrderingData[[cds@dim_reduce_type]]$branch_points
+###### 위 명령어로 branch point를 확인할 수 있다.. 그치만 별 소용은 없어보이고 duplicate method를 먼저 추가... 해줄것
+
+  BEAM_res <- BEAM(cds, branch_point = 1,progenitor_method = 'duplicate')
+
+  BEAM_res <- BEAM_res[order(BEAM_res$qval),]
+  BEAM_res <- BEAM_res[,c("gene_short_name", "pval", "qval")]
+  str(subset(BEAM_res,qval < 1e-4 & qval> 0))
+
+  options(repr.plot.height=10, repr.plot.width=10)
+
+# Filter for significant genes
+significant_genes <- subset(BEAM_res, qval < 1e-4)
+top_genes <- row.names(significant_genes)
+
+# Summarize the gene list (e.g., top 100 genes)
+summary_genes <- head(top_genes, 100)
+
+p1 <- plot_genes_branched_heatmap(cds[summary_genes,],
+                                          branch_point = 6,
+                                          num_clusters = 5,
+                                          cores = 1,
+                                          use_gene_short_name = T,
+                                          show_rownames = T)
+ggsave('trajectory/pseudotime/00_figures/02_monocle2_CD4CTL_branch_1_heatmap.png', p1)

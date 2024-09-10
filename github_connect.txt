@@ -10,8 +10,11 @@ git push -u origin main
 # upload new file/s to repository
 git add .
 git status
-git commit -m "231121_1"
+git commit -m "240116_2"
 git push -u origin main
 
 # download new files from repository
 git 
+
+# sync the local repository with the remote repository getting rid of every change you have made on your local
+git reset --hard origin/main

@@ -1,0 +1,60 @@
+# 240618 (data downloaded to Desktop from outside workstation -> ec2 instance)
+scp -i ~/NewInstance.pem ~/screpertoire/mrcc_s1_filtered_contig_annotations.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/mrcc_s2_filtered_contig_annotations.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/mrcc_s3_filtered_contig_annotations.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+
+# 240703 (data downloaded to Desktop from outside workstation -> ec2 instance)
+scp -i ~/NewInstance.pem ~/screpertoire/dCN_1.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/dCN_2.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/dCN_3.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/uCN_1.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/uCN_2.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/uCN_3.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+
+# 240716 
+scp -i ~/NewInstance.pem ~/screpertoire/dCN_1.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/dCN_2.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/dCN_3.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/uCN_1.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/uCN_2.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/uCN_3.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/04-2.rds.gz ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+
+# 240718
+scp -i ~/NewInstance.pem ~/screpertoire/B1.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/B2.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/B3.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+
+# 240731
+scp -i ~/NewInstance.pem ~/screpertoire/CD4.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/CD8.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+
+# 240826
+scp -i ~/NewInstance.pem ~/screpertoire/CD4_uCN.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/CD4_dCN.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/CD8_uCN.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/CD8_dCN.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+
+# 240830
+scp -i ~/NewInstance.pem ~/screpertoire/CD4_2.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/CD8_2.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/vdj_added_to_multimodal_rcc.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/04-1-3_metadata.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/04-1-4_metadata.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+
+# 240831
+scp -i ~/NewInstance.pem ~/screpertoire/dCN_1.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/dCN_2.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/dCN_3.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/uCN_1.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/uCN_2.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/uCN_3.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/04-1-6_uCN.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/04-1-5_dCN.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/04-1-5_uCN.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/04-1-6_dCN.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+scp -i ~/NewInstance.pem ~/screpertoire/04-2_metadata.csv ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+
+# 240902
+scp -i ~/NewInstance.pem ~/screpertoire/03-1.rds ubuntu@ec2-34-237-33-103.compute-1.amazonaws.com:/home/ubuntu/analysis/scRepertoire/data
+

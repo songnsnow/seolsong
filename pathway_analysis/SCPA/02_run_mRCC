@@ -1,0 +1,210 @@
+#/usr/bin/env
+#-----------------------------------------------------------------------
+# description : SCPA analysis
+# author      : songnsnow
+# date        : 240831
+# notes       : 
+#-----------------------------------------------------------------------
+# Set directory
+setwd('/home/ubuntu/analysis/scpa')
+
+# Load packages
+library(SCPA)
+library(tidyverse)
+library(msigdbr)
+library(Seurat)
+library(magrittr)
+library(dplyr)
+library(ComplexHeatmap)
+
+## All cell populations ###################################################################################
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/03-1.rds')
+save <- dt
+
+# Getting gene sets
+pathways <- msigdbr("Homo sapiens", "H") %>%
+  format_pathways()
+
+celltypes <- c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma')
+dt <- SplitObject(dt, split.by="subgroup")
+scpa_out <- list()
+for (i in celltypes){
+  uCN <- seurat_extract(dt$uCN, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  dCN <- seurat_extract(dt$dCN, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  print(paste("comparing",i))
+  scpa_out[[i]] <- compare_pathways(list(uCN, dCN), pathways) %>%
+    select(Pathway, qval) %>%
+    set_colnames(c("Pathway",paste(i,"qval",sep="_")))
+}
+
+save <- scpa_out
+scpa_out <- save
+
+scpa_out <- scpa_out %>%
+  reduce(full_join,by="Pathway") %>%
+  set_colnames(gsub(colnames(.), pattern=" ", replacement = "_")) %>%
+  select(c("Pathway", grep("_qval", colnames(.)))) %>%
+  filter_all(any_vars(.>2)) 
+  # %>%
+  # column_to_rownames("Pathway")
+
+# Heatmap
+png('figures/01_heatmap_by_celltype.png', width=1500, height=1500, unit = "px", res = 300)
+plot_heatmap(scpa_out, 
+            #  highlight_pathways = "myc",
+             column_names = c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma'),
+             show_row_names = T,
+             cluster_columns=T)
+dev.off()
+################################################################################################################
+
+
+
+## All cell populations ###################################################################################
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/03-1.rds')
+save <- dt
+
+# Getting gene sets
+pathways <- msigdbr("Homo sapiens", "H") %>%
+  format_pathways()
+
+dt <- SplitObject(dt, split.by="subgroup_2")
+scpa_out <- list()
+
+celltypes <- c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma')
+for (i in celltypes){
+  cn_1 <- seurat_extract(dt$uCN_Init, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  cn_2 <- seurat_extract(dt$uCN_CN, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  cn_3 <- seurat_extract(dt$`uCN_Nivo/ipi_2`, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  print(paste("comparing",i))
+  scpa_out[[i]] <- compare_pathways(list(cn_1, cn_2,cn_3), pathways) %>%
+    select(Pathway, qval) %>%
+    set_colnames(c("Pathway",paste(i,"qval",sep="_")))
+}
+
+for (i in celltypes){
+  cn_4 <- seurat_extract(dt$dCN_Init, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  cn_5 <- seurat_extract(dt$`dCN_Nivo/ipi_1`, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  cn_6 <- seurat_extract(dt$dCN_Nivo_maint, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  print(paste("comparing",i))
+  scpa_out[[i]] <- compare_pathways(list(cn_4, cn_5, cn_6), pathways) %>%
+    select(Pathway, qval) %>%
+    set_colnames(c("Pathway",paste(i,"qval",sep="_")))
+}
+
+
+save2 <- scpa_out
+scpa_out <- save2
+
+scpa_out <- scpa_out %>%
+  reduce(full_join,by="Pathway") %>%
+  set_colnames(gsub(colnames(.), pattern=" ", replacement = "_")) %>%
+  select(c("Pathway", grep("_qval", colnames(.)))) %>%
+  filter_all(any_vars(.>2)) 
+  # %>%
+  # column_to_rownames("Pathway")
+
+# Heatmap
+png('figures/01_heatmap_dCN.png', width=1500, height=1500, unit = "px", res = 300)
+plot_heatmap(scpa_out, 
+            #  highlight_pathways = "myc",
+             column_names = c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma'),
+             show_row_names = T,
+             cluster_columns=T)
+dev.off()
+################################################################################################################
+
+
+
+
+
+
+
+## All cell populations ###################################################################################
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/03-1.rds')
+save <- dt
+
+# Getting gene sets
+pathways <- msigdbr("Homo sapiens", "H") %>%
+  format_pathways()
+
+dt <- SplitObject(dt, split.by="subgroup")
+scpa_out <- list()
+
+celltypes <- c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma')
+for (i in celltypes){
+  cn_1 <- seurat_extract(dt$uCN, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  cn_2 <- seurat_extract(dt$dCN, assay='RNA', meta1='celltype.l1', value_meta1=i)
+  print(paste("comparing",i))
+  scpa_out[[i]] <- compare_pathways(list(cn_1, cn_2), pathways) %>%
+    select(Pathway, qval) %>%
+    set_colnames(c("Pathway",paste(i,"qval",sep="_")))
+}
+
+save2 <- scpa_out
+scpa_out <- save2
+
+scpa_out <- scpa_out %>%
+  reduce(full_join,by="Pathway") %>%
+  set_colnames(gsub(colnames(.), pattern=" ", replacement = "_")) %>%
+  select(c("Pathway", grep("_qval", colnames(.)))) %>%
+  filter_all(any_vars(.>2)) 
+  # %>%
+  # column_to_rownames("Pathway")
+
+# Heatmap
+png('figures/01_heatmap_uCNvsdCN_bycelltype.png', width=1500, height=1500, unit = "px", res = 300)
+plot_heatmap(scpa_out, 
+            #  highlight_pathways = "myc",
+             column_names = c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma'),
+             show_row_names = T,
+             cluster_columns=T)
+dev.off()
+################################################################################################################
+
+
+
+
+
+
+
+
+## T cells ###################################################################################
+# Load SeuratObject
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-2.rds')
+
+# Getting gene sets
+pathways <- msigdbr("Homo sapiens", "H") %>%
+  format_pathways()
+
+# Comparison within SeuratObject (more than 2 populations)
+scpa_out <- compare_seurat(dt,
+                           group1 = "subgroup", 
+                           group1_population = c("uCN", "dCN"),
+                           pathways = pathways,
+                           downsample = 1000,
+                          #  parallel = TRUE
+                           )
+
+# For faster analysis with parallel processing, use 'parallel = TRUE' and 'cores = x' arguments
+
+# Plotting ----------------------------------------------------------------
+# Simple rank plot
+# if you want all pathways that contain "MYC"...
+p1 <- plot_rank(scpa_out, "myc", 
+                highlight_point_size = 3.5, highlight_point_color = "#60c5f7")
+
+# or if you want a specific myc pathway...
+p2 <- plot_rank(scpa_out, "HALLMARK_MYC_TARGETS_V1",
+                highlight_point_size = 3.5, highlight_point_color = "#fa815c")
+
+patchwork::wrap_plots(p1, p2)
+ggsave(paste('figures/01_myc_pathways.png',sep=''),width=10, height=5,scale=1,bg="white")
+
+# Heatmap
+png('figures/01_heatmap_by_subgroup.png', width=1500, height=1500, unit = "px", res = 300)
+plot_heatmap(scpa_out, 
+            #  highlight_pathways = "myc",
+             column_names = "uCN vs dCN",
+             show_row_names = T)
+dev.off()

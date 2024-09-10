@@ -1,0 +1,13 @@
+export PATH=/data/project/mRCC_HWS/analysis/sc_cellranger/cellranger-8.0.0:$PATH
+
+cd /data/project/mRCC_HWS/data/scRNA-seq/outs
+mkdir mrcc_s1
+cellranger multi --id=mrcc_s1 --csv=/data/project/mRCC_HWS/analysis/sc_cellranger/mrcc_s1.csv
+
+cd /data/project/mRCC_HWS/data/scRNA-seq/outs
+mkdir mrcc_s2
+cellranger multi --id=mrcc_s2 --csv=/data/project/mRCC_HWS/analysis/sc_cellranger/mrcc_s2.csv
+
+cd /data/project/mRCC_HWS/data/scRNA-seq/outs
+mkdir mrcc_s3
+cellranger multi --id=mrcc_s3 --csv=/data/project/mRCC_HWS/analysis/sc_cellranger/mrcc_s3.csv

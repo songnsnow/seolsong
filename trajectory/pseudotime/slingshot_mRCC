@@ -1,0 +1,143 @@
+#/usr/bin/env R conda slingshot
+#-----------------------------------------------------------------------
+# description : slingshot
+# author      : songnsnow
+# date        : 240826
+# notes       : 
+#-----------------------------------------------------------------------
+
+# load libraries -------------------------------------------------------
+library(Seurat)
+library(SingleCellExperiment)
+library(slingshot)
+library(RColorBrewer)
+library(ggplot2)
+library(dplyr)
+
+setwd("/home/ubuntu/analysis/slingshot")
+
+# uCN ###########################################################################
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-1-5_uCN.rds')
+df <- read.csv("/home/ubuntu/analysis/scRepertoire/data/04-1-3_metadata.csv", row.names = 1)
+dt <- AddMetaData(dt, metadata = df)
+
+# making single cell object from Seurat object
+sce <- as.SingleCellExperiment(dt)
+# save <- sce
+sce <- slingshot(sce, clusterLabels = 'celltype.l2', reducedDim = 'WNN.UMAP')
+summary(sce$slingPseudotime_1)
+
+# Identifying global lineage structure
+lnes <- getLineages(reducedDim(sce,"WNN.UMAP"), sce$celltype.l2, start.clus = c("0","2"))
+
+set.seed(1)
+colors_18 <- c(brewer.pal(8, "Set1"),
+               brewer.pal(8, "Set2"),
+               brewer.pal(3, "Dark2"))
+
+png('figures/02-2_uCN_lnes.png', width=3000, height=3000, unit = "px", res = 300)
+plot(reducedDim(sce,"WNN.UMAP"), col = colors_18[sce$celltype.l2], asp = 1, pch = 16)
+lines(SlingshotDataSet(lnes), lwd = 3, col = 'black')
+dev.off()
+
+#######
+curves <- getCurves(lnes, approx_points = 300, thresh = 0.01, stretch = 0.8, allow.breaks = FALSE, shrink = 0.99)
+
+png('figures/02-2_uCN_curves.png', width=2000, height=2000, unit = "px", res = 300)
+plot(reducedDim(sce,"WNN.UMAP"), col = colors_18[sce$celltype.l2], asp = 1, pch = 16)
+lines(SlingshotDataSet(curves), lwd = 3, col = "black")
+dev.off()
+
+
+#######
+pt <- dt
+pt <- SetIdent(pt, value = pt@meta.data$seurat_clusters)
+
+pt$pseudotime1 <- sce$slingPseudotime_1
+pt$pseudotime2 <- sce$slingPseudotime_2
+pt$pseudotime3 <- sce$slingPseudotime_3
+pt$pseudotime4 <- sce$slingPseudotime_4
+
+png(file = 'figures/02-2_uCN_pseudo1.png', height=1500, width=1500, units='px',res=300)
+FeaturePlot(pt, c("pseudotime1"),reduction="wnn.umap")&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")),na.value="grey85")
+dev.off()
+
+png(file = 'figures/02-2_uCN_pseudo2.png', height=1500, width=1500, units='px',res=300)
+FeaturePlot(pt, c("pseudotime2"),reduction="wnn.umap")&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")),na.value="grey85")
+dev.off()
+
+png(file = 'figures/02-2_uCN_pseudo3.png', height=1500, width=1500, units='px',res=300)
+FeaturePlot(pt, c("pseudotime3"),reduction="wnn.umap")&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")),na.value="grey85")
+dev.off()
+
+png(file = 'figures/02-2_uCN_pseudo4.png', height=1500, width=1500, units='px',res=300)
+FeaturePlot(pt, c("pseudotime4"),reduction="wnn.umap")&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")),na.value="grey85")
+dev.off()
+
+
+
+# dCN ###########################################################################
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-1-5_dCN.rds')
+df <- read.csv("/home/ubuntu/analysis/scRepertoire/data/04-1-3_metadata.csv", row.names = 1)
+dt <- AddMetaData(dt, metadata = df)
+
+# making single cell object from Seurat object
+sce <- as.SingleCellExperiment(dt)
+# save <- sce
+sce <- slingshot(sce, clusterLabels = 'celltype.l2', reducedDim = 'WNN.UMAP')
+summary(sce$slingPseudotime_1)
+
+# Identifying global lineage structure
+lnes <- getLineages(reducedDim(sce,"WNN.UMAP"), sce$celltype.l2, start.clus = c("0","2"))
+
+set.seed(1)
+colors_18 <- c(brewer.pal(8, "Set1"),
+               brewer.pal(8, "Set2"),
+               brewer.pal(3, "Dark2"))
+
+png('figures/02-2_dCN_lnes.png', width=3000, height=3000, unit = "px", res = 300)
+plot(reducedDim(sce,"WNN.UMAP"), col = colors_18[sce$celltype.l2], asp = 1, pch = 16)
+lines(SlingshotDataSet(lnes), lwd = 3, col = 'black')
+dev.off()
+
+#######
+curves <- getCurves(lnes, approx_points = 300, thresh = 0.01, stretch = 0.8, allow.breaks = FALSE, shrink = 0.99)
+
+png('figures/02-2_dCN_curves.png', width=2000, height=2000, unit = "px", res = 300)
+plot(reducedDim(sce,"WNN.UMAP"), col = colors_18[sce$celltype.l2], asp = 1, pch = 16)
+lines(SlingshotDataSet(curves), lwd = 3, col = "black")
+dev.off()
+
+
+#######
+pt <- dt
+pt <- SetIdent(pt, value = pt@meta.data$seurat_clusters)
+pt$pseudotime1 <- sce$slingPseudotime_1
+pt$pseudotime2 <- sce$slingPseudotime_2
+pt$pseudotime3 <- sce$slingPseudotime_3
+pt$pseudotime4 <- sce$slingPseudotime_4
+
+png(file = 'figures/02-2_dCN_pseudo1.png', height=1500, width=1500, units='px',res=300)
+FeaturePlot(pt, c("pseudotime1"),reduction="wnn.umap")&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")),na.value="grey85")
+dev.off()
+
+png(file = 'figures/02-2_dCN_pseudo2.png', height=1500, width=1500, units='px',res=300)
+FeaturePlot(pt, c("pseudotime2"),reduction="wnn.umap")&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")),na.value="grey85")
+dev.off()
+
+png(file = 'figures/02-2_dCN_pseudo3.png', height=1500, width=1500, units='px',res=300)
+FeaturePlot(pt, c("pseudotime3"),reduction="wnn.umap")&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")),na.value="grey85")
+dev.off()
+
+png(file = 'figures/02-2_dCN_pseudo4.png', height=1500, width=1500, units='px',res=300)
+FeaturePlot(pt, c("pseudotime4"),reduction="wnn.umap")&
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")),na.value="grey85")
+dev.off()
+

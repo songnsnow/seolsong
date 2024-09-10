@@ -1,0 +1,55 @@
+#/usr/bin/env
+#-----------------------------------------------------------------------
+# description : SCPA analysis
+# author      : songnsnow
+# date        : 240831
+# notes       : 
+#-----------------------------------------------------------------------
+# Set directory
+setwd('/home/ubuntu/analysis/scpa')
+
+# Load packages
+library(SCPA)
+library(tidyverse)
+library(msigdbr)
+library(Seurat)
+library(magrittr)
+library(dplyr)
+library(ComplexHeatmap)
+
+# Load SeuratObject
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-2.rds')
+
+# Getting gene sets
+pathways <- msigdbr("Homo sapiens", "H") %>%
+  format_pathways()
+
+# Comparison within SeuratObject (more than 2 populations)
+scpa_out <- compare_seurat(dt,
+                           group1 = "subgroup", 
+                           group1_population = c("uCN", "dCN"),
+                           pathways = pathways,
+                           downsample = 15000,
+                           parallel = TRUE,
+                           cores = 5)
+
+# For faster analysis with parallel processing, use 'parallel = TRUE' and 'cores = x' arguments
+
+# Plotting ----------------------------------------------------------------
+# Simple rank plot
+# if you want all pathways that contain "MYC"...
+p1 <- plot_rank(scpa_out, "myc", 
+                highlight_point_size = 3.5, highlight_point_color = "#60c5f7")
+
+# or if you want a specific myc pathway...
+p2 <- plot_rank(scpa_out, "HALLMARK_MYC_TARGETS_V1",
+                highlight_point_size = 3.5, highlight_point_color = "#fa815c")
+
+patchwork::wrap_plots(p1, p2)
+
+# Heatmap
+plot_heatmap(scpa_out, 
+             highlight_pathways = "myc",
+             column_names = "uCN vs dCN",
+             show_row_names = F)
+ggsave(paste('figures/01_subgroup.png',sep=''),width=10, height=5,scale=1,bg="white")

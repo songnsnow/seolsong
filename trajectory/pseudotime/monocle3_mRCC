@@ -1,0 +1,126 @@
+# Setup ========================================================================
+BiocManager::install(c('BiocGenerics', 'DelayedArray', 'DelayedMatrixStats',
+                       'limma', 'lme4', 'S4Vectors', 'SingleCellExperiment',
+                       'SummarizedExperiment', 'batchelor', 'HDF5Array',
+                       'terra', 'ggrastr'))
+
+// ERROR: dependencies ‘ggrastr’, ‘lme4’, ‘sf’, ‘spdep’ are not available for package ‘monocle3’
+
+sudo apt-get install libcairo2-dev
+install.packages("Cairo")   # for ggrastr
+install.packages('ggrastr')
+sudo apt install cmake
+install.packages('nloptr')
+install.packages('lme4')
+sudo apt-get install libudunits2-dev
+sudo apt install libgdal-dev
+install.packages('sf')
+install.packages('spdep')
+# apt-get install libcairo2-dev
+apt-get install libxt-dev
+
+
+# install.packages("devtools")
+library(devtools)
+devtools::install_github('cole-trapnell-lab/monocle3')
+library(monocle3)
+# ===========================================================================
+
+
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : monocle3 w/ seurat
+# author      : songnsnow
+# date        : 240714
+# notes       : https://cole-trapnell-lab.github.io/monocle3/docs/trajectories/
+#-----------------------------------------------------------------------
+setwd("/home/ubuntu/analysis/monocle3")
+
+# Load packages
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+library(remotes)
+library(SeuratWrappers)
+library(SingleCellExperiment)
+library(monocle3)
+library(RColorBrewer)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+
+
+# uCN ###################################################################################################################
+# load SeuratObject
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-1-5_uCN.rds')
+df <- read.csv("/home/ubuntu/analysis/scRepertoire/data/04-1-3_metadata.csv", row.names = 1)
+dt <- AddMetaData(dt, metadata = df)
+
+cds <- as.cell_data_set(dt, assay='RNA', default.reduction='wnn.umap', graph='wsnn', group.by='subgroup_2')
+
+cds <- preprocess_cds(cds, num_dim = 50)
+cds <- align_cds(cds, alignment_group = "batch")
+cds <- reduce_dimension(cds)
+cds <- cluster_cells(cds, resolution=5e-4)
+
+# learn trajectory graph
+cds <- learn_graph(cds)
+
+# p1 <- plot_cells(cds, color_cells_by = "cluster", show_trajectory_graph = FALSE)
+p1 <- plot_cells(cds, color_cells_by = "subgroup_2", show_trajectory_graph = FALSE, group_cells_by="subgroup_2", label_cell_groups=FALSE)
+p2 <- plot_cells(cds,
+           color_cells_by = "celltype.l2",
+           label_groups_by_cluster=FALSE,
+           label_leaves=FALSE,
+           label_branch_points=TRUE,
+           group_label_size=3)
+           
+wrap_plots(p1, p2)
+ggsave(paste('figures/02-2_uCN_cd4_subgroup2.png',sep=''),width=12, height=5,scale=1)
+
+cds <- order_cells(cds)
+
+plot_cells(cds,
+           color_cells_by = "pseudotime",
+           label_cell_groups=FALSE,
+           label_leaves=FALSE,
+           label_branch_points=FALSE,
+           graph_label_size=1.5)
+ggsave(paste('figures/02-2_uCN_cd4_pseudotime.png',sep=''),width=5, height=5,scale=1)
+
+
+# dCN ###################################################################################################################
+# load SeuratObject
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-1-5_dCN.rds')
+df <- read.csv("/home/ubuntu/analysis/scRepertoire/data/04-1-3_metadata.csv", row.names = 1)
+dt <- AddMetaData(dt, metadata = df)
+
+cds <- as.cell_data_set(dt, assay='RNA', default.reduction='wnn.umap', graph='wsnn', group.by='subgroup_2')
+
+cds <- preprocess_cds(cds, num_dim = 50)
+cds <- align_cds(cds, alignment_group = "batch")
+cds <- reduce_dimension(cds)
+cds <- cluster_cells(cds, resolution=5e-4)
+
+# learn trajectory graph
+cds <- learn_graph(cds)
+
+p1 <- plot_cells(cds, color_cells_by = "subgroup_2", show_trajectory_graph = FALSE, group_cells_by="subgroup_2", label_cell_groups=FALSE)
+p2 <- plot_cells(cds,
+           color_cells_by = "celltype.l2",
+           label_groups_by_cluster=FALSE,
+           label_leaves=FALSE,
+           label_branch_points=TRUE,
+           group_label_size=3)
+           
+wrap_plots(p1, p2)
+ggsave(paste('figures/02-2_dCN_cd4_subgroup2.png',sep=''),width=12, height=5,scale=1)
+
+cds <- order_cells(cds)
+
+plot_cells(cds,
+           color_cells_by = "pseudotime",
+           label_cell_groups=FALSE,
+           label_leaves=FALSE,
+           label_branch_points=FALSE,
+           graph_label_size=1.5)
+ggsave(paste('figures/02-2_dCN_cd4_pseudotime.png',sep=''),width=5, height=5,scale=1)

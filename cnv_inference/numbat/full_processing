@@ -1,0 +1,196 @@
+# interpret results ------------------------------------------------------------------------------------------------
+# load libraries
+library(ggplot2)
+library(numbat)
+library(dplyr)
+library(glue)
+library(data.table)
+library(ggtree)
+library(stringr)
+library(tidygraph)
+library(patchwork)
+
+# summarize output files to Numbat object
+nb_test = Numbat$new(out_dir = '/mnt/mydata/output/rcc_1')
+
+# plot
+mypal = c('1' = 'gray', '2' = "#377EB8", '3' = "#4DAF4A", '4' = "#984EA3")
+  
+nb_test$plot_phylo_heatmap(
+  clone_bar = TRUE, 
+  p_min = 0.9,
+  pal_clone = mypal
+)
+ggsave('/mnt/mydata/plot/heatmap_rcc.1.png',width=10, height=3,scale=1.5)
+
+# pseudobulk
+nb_test$bulk_clones %>% 
+  filter(n_cells > 50) %>%
+  plot_bulks(
+    min_LLR = 10, # filtering CNVs by evidence
+    legend = TRUE
+  )
+ggsave('/mnt/mydata/plot/bulk_rcc.1.png',width=10, height=3,scale=1.8)
+
+# consensus
+nb_test$plot_consensus()
+ggsave('/mnt/mydata/plot/consensus_rcc.1.png',width=10, height=3,scale=1.5)
+
+
+mypal = c('1' = 'gray', '2' = "#377EB8", '3' = "#4DAF4A", '4' = "#984EA3", '5'="yellow")
+# rcc.2
+nb = Numbat$new(out_dir = '/mnt/mydata/output/rcc_2')
+
+nb$plot_phylo_heatmap(
+  clone_bar = TRUE, 
+  p_min = 0.9,
+  pal_clone = mypal
+)
+ggsave('/mnt/mydata/plot/heatmap_rcc.2.png',width=10, height=3,scale=1.5)
+
+nb$bulk_clones %>% 
+  filter(n_cells > 50) %>%
+  plot_bulks(
+    min_LLR = 10,
+    legend = TRUE
+  )
+ggsave('/mnt/mydata/plot/bulk_rcc.2.png',width=10, height=3,scale=1.8)
+
+nb$plot_consensus()
+ggsave('/mnt/mydata/plot/consensus_rcc.2.png',width=3000, height=500,units='px',dpi=200)
+
+
+# rcc.3
+nb = Numbat$new(out_dir = '/mnt/mydata/output/rcc_3')
+
+nb$plot_phylo_heatmap(
+  clone_bar = TRUE, 
+  p_min = 0.9,
+  pal_clone = mypal
+)
+ggsave('/mnt/mydata/plot/heatmap_rcc.3.png',width=10, height=3,scale=1.5)
+
+nb$bulk_clones %>% 
+  filter(n_cells > 50) %>%
+  plot_bulks(
+    min_LLR = 10,
+    legend = TRUE
+  )
+ggsave('/mnt/mydata/plot/bulk_rcc.3.png',width=10, height=3,scale=1.8)
+
+nb$plot_consensus()
+ggsave('/mnt/mydata/plot/consensus_rcc.3.png',width=3000, height=500,units='px',dpi=200)
+
+
+# rcc.4
+nb = Numbat$new(out_dir = '/mnt/mydata/output/rcc_4')
+
+nb$plot_phylo_heatmap(
+  clone_bar = TRUE, 
+  p_min = 0.9,
+  pal_clone = mypal
+)
+ggsave('/mnt/mydata/plot/heatmap_rcc.4.png',width=10, height=3,scale=1.5)
+
+nb$bulk_clones %>% 
+  filter(n_cells > 50) %>%
+  plot_bulks(
+    min_LLR = 10,
+    legend = TRUE
+  )
+ggsave('/mnt/mydata/plot/bulk_rcc.4.png',width=10, height=3,scale=1.8)
+
+nb$plot_consensus()
+ggsave('/mnt/mydata/plot/consensus_rcc.4.png',width=3000, height=500,units='px',dpi=200)
+
+
+# rcc.5
+nb = Numbat$new(out_dir = '/mnt/mydata/output/rcc_5')
+
+nb$plot_phylo_heatmap(
+  clone_bar = TRUE, 
+  p_min = 0.9,
+  pal_clone = mypal
+)
+ggsave('/mnt/mydata/plot/heatmap_rcc.5.png',width=10, height=3,scale=1.5)
+
+nb$bulk_clones %>% 
+  filter(n_cells > 50) %>%
+  plot_bulks(
+    min_LLR = 10,
+    legend = TRUE
+  )
+ggsave('/mnt/mydata/plot/bulk_rcc.5.png',width=10, height=3,scale=1.8)
+
+nb$plot_consensus()
+ggsave('/mnt/mydata/plot/consensus_rcc.5.png',width=3000, height=500,units='px',dpi=200)
+
+
+# rcc.6
+nb = Numbat$new(out_dir = '/mnt/mydata/output/rcc_6')
+
+nb$plot_phylo_heatmap(
+  clone_bar = TRUE, 
+  p_min = 0.9,
+  pal_clone = mypal
+)
+ggsave('/mnt/mydata/plot/heatmap_rcc.6.png',width=10, height=3,scale=1.5)
+
+nb$bulk_clones %>% 
+  filter(n_cells > 50) %>%
+  plot_bulks(
+    min_LLR = 10,
+    legend = TRUE
+  )
+ggsave('/mnt/mydata/plot/bulk_rcc.6.png',width=10, height=3,scale=1.8)
+
+nb$plot_consensus()
+ggsave('/mnt/mydata/plot/consensus_rcc.6.png',width=3000, height=500,units='px',dpi=200)
+
+
+# rcc.7
+nb = Numbat$new(out_dir = '/mnt/mydata/output/rcc_7')
+
+nb$plot_phylo_heatmap(
+  clone_bar = TRUE, 
+  p_min = 0.9,
+  pal_clone = mypal
+)
+ggsave('/mnt/mydata/plot/heatmap_rcc.7.png',width=10, height=3,scale=1.5)
+
+nb$bulk_clones %>% 
+  filter(n_cells > 50) %>%
+  plot_bulks(
+    min_LLR = 10,
+    legend = TRUE
+  )
+ggsave('/mnt/mydata/plot/bulk_rcc.7.png',width=10, height=3,scale=1.8)
+
+nb$plot_consensus()
+ggsave('/mnt/mydata/plot/consensus_rcc.7.png',width=3000, height=500,units='px',dpi=200)
+
+
+# rcc.8 ---------------------------------------------------------------------------------------------------
+mypal = c('1' = 'gray', '2' = "#377EB8", '3' = "#4DAF4A", '4' = "#984EA3", '5'="yellow", '6'="pink")
+nb = Numbat$new(out_dir = '/mnt/mydata/output/rcc_8')
+
+nb$plot_phylo_heatmap(
+  clone_bar = TRUE, 
+  p_min = 0.9,
+  pal_clone = mypal
+)
+ggsave('/mnt/mydata/plot/heatmap_rcc.8.png',width=10, height=3,scale=1.5)
+
+nb$bulk_clones %>% 
+  filter(n_cells > 50) %>%
+  plot_bulks(
+    min_LLR = 10,
+    legend = TRUE
+  )
+ggsave('/mnt/mydata/plot/bulk_rcc.8.png',width=10, height=5,scale=1.8)
+
+nb$plot_consensus()
+ggsave('/mnt/mydata/plot/consensus_rcc.8.png',width=3000, height=500,units='px',dpi=200)
+
+# single cell cnv
+head(nb$joint_post) %>% select(cell, CHROM, seg, cnv_state, p_cnv, p_cnv_x, p_cnv_y)

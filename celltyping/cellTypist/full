@@ -1,0 +1,204 @@
+# 1. celltypist
+args = commandArgs(trailingOnly=TRUE)
+Seurat_dir <- args[1]
+outdir <- args[2]
+print(Seurat_dir)
+Seurat <- readRDS(file="/data/project/RCC_HWS/SS/sc/seurat/pro6.2.rds")
+rows <- nrow(Seurat)
+cols <- ncol(Seurat)
+cuts <- round(seq(1,rows, by = rows/7))
+
+setwd('/data/project/RCC_HWS/SS/sc/seurat')
+print('loading seurats')
+Seu1 <- Seurat[cuts[1]:(cuts[2]-1),]
+Seu2 <- Seurat[cuts[2]:(cuts[3]-1),]
+Seu3 <- Seurat[cuts[3]:(cuts[4]-1),]
+Seu4 <- Seurat[cuts[4]:(cuts[5]-1),]
+Seu5 <- Seurat[cuts[5]:(cuts[6]-1),]
+Seu6 <- Seurat[cuts[6]:(cuts[7]-1),]
+Seu7 <- Seurat[cuts[7]:rows,]
+
+#1
+print("Step 1/7")
+count_norm1 <- as.data.frame(Seu1[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu1[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv', row.names=TRUE, col.names=TRUE, quote=FALSE, nThread=10)
+#2
+print("Step 2/7")
+count_norm1 <- as.data.frame(Seu2[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu2[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#3
+print("Step 3/7")
+count_norm1 <- as.data.frame(Seu3[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu3[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#4
+print("Step 4/7")
+count_norm1 <- as.data.frame(Seu4[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu4[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#5
+print("Step 5/7")
+count_norm1 <- as.data.frame(Seu5[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu5[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#6
+print("Step 6/7")
+count_norm1 <- as.data.frame(Seu6[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu6[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+#7
+print("Step 7/7")
+count_norm1 <- as.data.frame(Seu7[["RNA"]]@counts[,1:round(cols/2)])
+count_norm2 <- as.data.frame(Seu7[["RNA"]]@counts[,(round(cols/2)+1):cols])
+tmp <- cbind(count_norm1,count_norm2)
+fwrite(tmp, file='seurat.csv',append=TRUE,row.names=TRUE, col.names=FALSE, quote=FALSE, nThread=10)
+
+# celltypist (command line)---------------------------------------------------------------
+# celltypist --update-models
+celltypist --indata /data/project/RCC_HWS/SS/sc/seurat/seurat.csv --model Immune_All_Low.pkl --outdir /data/project/RCC_HWS/SS/sc/celltypist/imm_low --transpose-input
+# celltypist --indata /data/project/RCC_HWS/SS/sc/seurat/seurat.csv --model Immune_All_High.pkl --outdir /data/project/RCC_HWS/SS/sc/celltypist/imm_high --transpose-input
+
+# add metadata--------------------------------------------------------------
+labels <- read.csv("/data/project/RCC_HWS/SS/sc/celltypist/imm_low/predicted_labels.csv")
+row.names(labels) <- labels$X #set rowname of new to cell barcode
+dt <- AddMetaData(dt, metadata = labels)
+dt$X <- NULL #remove extra barcode column
+backup8 <- dt
+saveRDS(dt, '/data/project/RCC_HWS/SS/sc/seurat/pro8.rds')
+
+png('/data/project/RCC_HWS/SS/sc/seurat/pro8.labels.png',width=2200,height=1700)
+DimPlot(dt, reduction = "umap", group.by='predicted_labels', label=TRUE)
+dev.off()
+
+count <- table(dt$seurat_clusters,dt$predicted_labels)
+write.csv(count,'/data/project/RCC_HWS/SS/sc/seurat/predicted_by_clusters.csv')
+clusters <- rownames(count)
+id <- c(colnames(count)[apply(count,1,which.max)])
+best_id <- data.frame(clusters, id)
+write.csv(best_id,'/data/project/RCC_HWS/SS/sc/seurat/best_id_by_cluster.csv')
+
+lbd <- dt
+names(id) <- levels(lbd)
+dt <- RenameIdents(lbd, id)
+
+png('/data/project/RCC_HWS/SS/sc/seurat/pro8.cluster.labeled.png',width=700,height=600)
+DimPlot(dt, reduction = "umap", group.by='ident', label=TRUE)
+dev.off()
+
+#--------------
+#return rownames with values greater than 10
+# type_count <- data.frame(unclass(table(dt$predicted_labels)))
+count <- table(dt$seurat_clusters,dt$predicted_labels)
+clusters <- rownames(count)
+df <- NULL
+df <- as.data.frame(clusters,)
+for(i in 1:ncol(count)){
+    x <- 0
+    for (j in 1:nrow(count)){
+        if (count[j,i] > 10){
+            x <- 1
+        }
+    }
+    if (x>0){
+        new <- as.data.frame(count[,i], drop=FALSE)
+        colnames(new) <- colnames(count)[i]
+        df <- cbind(df,new)
+    }
+}
+
+df_per <- df[2:ncol(df)]/rowSums(df[2:ncol(df)])
+df_tib <- dplyr::as_tibble(df_per, rownames = "Cluster")
+df_tib <- gather(df_tib,key='Cell.Type',value='Percentage',2:ncol(df_tib))
+df_tib <- arrange(df_tib, Cluster)
+df_tib$Cluster <- as.numeric(as.character(df_tib$Cluster))
+df_tib <- df_tib[order(df_tib$Cluster),]
+
+#plot--------------------------------------------
+# level_order <- c('0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18')
+png(file='/data/project/RCC_HWS/SS/sc/seurat/pro8.celltype.by.cluster.png',width=1200,res=100)
+ggplot(df_tib, aes(x=factor(Cluster),y=Percentage, fill=Cell.Type)) +
+    geom_bar(position='fill',stat='identity') +
+    theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
+    #xlab('Cluster') +
+    coord_flip()
+dev.off()
+
+#cell type by patient
+count <- table(dt$donor_id,dt$predicted_labels)
+id <- rownames(count)
+df <- NULL
+df <- as.data.frame(id,)
+for(i in 1:ncol(count)){
+    x <- 0
+    for (j in 1:nrow(count)){
+        if (count[j,i] > 10){
+            x <- 1
+        }
+    }
+    if (x>0){
+        new <- as.data.frame(count[,i], drop=FALSE)
+        colnames(new) <- colnames(count)[i]
+        df <- cbind(df,new)
+    }
+}
+df_save <- df
+df_per <- df[2:ncol(df)]/rowSums(df[2:ncol(df)])
+df_tib <- dplyr::as_tibble(df_per, rownames = "Donor.Id")
+df_tib <- gather(df_tib,key='Cell.Type',value='Percentage',2:ncol(df_tib))
+df_tib <- arrange(df_tib, Donor.Id)
+# df_tib$Donor.Id <- as.numeric(as.character(df_tib$Donor.Id))
+# df_tib <- df_tib[order(df_tib$Donor.Id),]
+non_agg <- c('KJT','KSH','CSB','MYS')
+agg <- c('YJH','LHJ','KYE','CSK')
+patient_order <- c(agg,non_agg)
+
+png(file='/data/project/RCC_HWS/SS/sc/seurat/pro8.celltype.by.donor.png',width=1200,res=100)
+ggplot(df_tib, aes(x=factor(Donor.Id, levels=patient_order),y=Percentage, fill=Cell.Type)) +
+    geom_bar(position='fill',stat='identity') +
+    theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
+    coord_flip()
+dev.off()
+
+#donor by cell type -- cell type w/ count < 20 for YJH removed
+count <- as.data.frame.matrix(table(dt$predicted_labels, dt$donor_id))
+count <- t(count) #transpose
+id <- rownames(count)
+df <- NULL
+df <- as.data.frame(id,)
+
+for(i in nrow(count):nrow(count)){
+    for (j in 1:ncol(count)){
+        if (count[8,j] > 20){
+            new <- as.data.frame(count[,j], drop=FALSE)
+            colnames(new) <- colnames(count)[j]
+            df <- cbind(df,new)
+        }
+    }
+}
+df_save <- df
+df$id <- NULL
+df_t <- as.data.frame.matrix(t(df))   
+df_per <- df_t[1:ncol(df_t)]/rowSums(df_t[1:ncol(df_t)])
+df_tib <- dplyr::as_tibble(df_per, rownames = "Cell.Type")
+df_tib <- gather(df_tib,key='Donor.Id',value='Percentage',2:ncol(df_tib))
+# df_tib <- arrange(df_tib, Donor.Id)
+# df_tib$Donor.Id <- as.numeric(as.character(df_tib$Donor.Id))
+# df_tib <- df_tib[order(df_tib$Donor.Id),]
+non_agg <- c('KJT','KSH','CSB','MYS')
+agg <- c('YJH','LHJ','KYE','CSK')
+patient_order <- c(agg,non_agg)
+
+png(file='/data/project/RCC_HWS/SS/sc/seurat/pro8.donor.by.celltype.png',width=1200,res=100)
+ggplot(df_tib, aes(x=Cell.Type,y=Percentage, fill=factor(Donor.Id, levels=patient_order))) +
+    geom_bar(position='fill',stat='identity') +
+    theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
+    coord_flip()
+dev.off()

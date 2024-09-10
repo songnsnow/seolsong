@@ -1,0 +1,95 @@
+# in terminal
+sudo apt-get install libssl-dev # for openssl for seurat
+sudo apt-get install libcurl4-openssl-dev # for curl for seurat
+sudo apt-get install libfontconfig1-dev # for "systemfonts" for remotes
+sudo apt-get install libxml2-dev # for "xml2" for remotes
+sudo apt-get install libharfbuzz-dev libfribidi-dev # for "textshaping" for remotes
+sudo apt-get install libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev # for "ragg" for remotes
+sudo apt-get install libgsl-dev # for "gsl" for scRepertoire
+
+# install seurat
+remotes::install_github("satijalab/seurat", "seurat5", quiet = FALSE)
+# remotes::install_github("satijalab/seurat-data", "seurat5", quiet = TRUE)
+# remotes::install_github("satijalab/azimuth", "seurat5", quiet = TRUE)
+# remotes::install_github("satijalab/seurat-wrappers", "seurat5", quiet = TRUE)
+# remotes::install_github("stuart-lab/signac", "seurat5", quiet = TRUE)
+# remotes::install_github("bnprks/BPCells/r")
+
+# 1: In i.p(...) : installation of package ‘Rcpp’ had non-zero exit status
+# 2: In i.p(...) : installation of package ‘openssl’ had non-zero exit status
+# 3: In i.p(...) : installation of package ‘curl’ had non-zero exit status
+# 4: In i.p(...) : installation of package ‘sitmo’ had non-zero exit status
+# 5: In i.p(...) : installation of package ‘RcppEigen’ had non-zero exit status
+# 6: In i.p(...) : installation of package ‘later’ had non-zero exit status
+# 7: In i.p(...) : installation of package ‘plyr’ had non-zero exit status
+# 8: In i.p(...) : installation of package ‘RcppTOML’ had non-zero exit status
+# 9: In i.p(...) : installation of package ‘RcppAnnoy’ had non-zero exit status
+# 10: In i.p(...) :
+#   installation of package ‘RcppArmadillo’ had non-zero exit status
+# 11: In i.p(...) : installation of package ‘httr’ had non-zero exit status
+# 12: In i.p(...) : installation of package ‘spam’ had non-zero exit status
+# 13: In i.p(...) : installation of package ‘Rtsne’ had non-zero exit status
+# 14: In i.p(...) : installation of package ‘RcppHNSW’ had non-zero exit status
+# 15: In i.p(...) : installation of package ‘ggrepel’ had non-zero exit status
+# 16: In i.p(...) : installation of package ‘promises’ had non-zero exit status
+# 17: In i.p(...) : installation of package ‘dqrng’ had non-zero exit status
+# 18: In i.p(...) : installation of package ‘RSpectra’ had non-zero exit status
+# 19: In i.p(...) : installation of package ‘reshape2’ had non-zero exit status
+# 20: In i.p(...) : installation of package ‘reticulate’ had non-zero exit status
+# 21: In i.p(...) : installation of package ‘SeuratObject’ had non-zero exit status
+# 22: In i.p(...) : installation of package ‘httpuv’ had non-zero exit status
+# 23: In i.p(...) : installation of package ‘uwot’ had non-zero exit status
+# 24: In i.p(...) : installation of package ‘sctransform’ had non-zero exit status
+# 25: In i.p(...) : installation of package ‘plotly’ had non-zero exit status
+# 26: In i.p(...) : installation of package ‘leiden’ had non-zero exit status
+# 27: In i.p(...) : installation of package ‘shiny’ had non-zero exit status
+# 28: In i.p(...) : installation of package ‘miniUI’ had non-zero exit status
+
+# install scRepertoire
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(version = "3.19")
+# BiocManager::install("scRepertoire")
+
+install.packages('devtools')
+# 1: In install.packages("devtools") :
+#   installation of package ‘systemfonts’ had non-zero exit status
+# 2: In install.packages("devtools") :
+#   installation of package ‘xml2’ had non-zero exit status
+# 3: In install.packages("devtools") :
+#   installation of package ‘textshaping’ had non-zero exit status
+# 4: In install.packages("devtools") :
+#   installation of package ‘roxygen2’ had non-zero exit status
+# 5: In install.packages("devtools") :
+#   installation of package ‘rversions’ had non-zero exit status
+# 6: In install.packages("devtools") :
+#   installation of package ‘urlchecker’ had non-zero exit status
+# 7: In install.packages("devtools") :
+#   installation of package ‘ragg’ had non-zero exit status
+# 8: In install.packages("devtools") :
+#   installation of package ‘pkgdown’ had non-zero exit status
+# 9: In install.packages("devtools") :
+#   installation of package ‘devtools’ had non-zero exit status
+library(devtools)
+# install following for scRepertoire
+BiocManager::install("IRanges")
+BiocManager::install("S4Arrays")
+BiocManager::install("XVector")
+BiocManager::install("GenomeInfoDb")
+BiocManager::install("GenomicRanges")
+BiocManager::install("SparseArray")
+BiocManager::install("DelayedArray")
+BiocManager::install("SummarizedExperiment")
+devtools::install_github("ncborcherding/scRepertoire")
+# ERROR: dependency ‘gsl’ is not available for package ‘evmix’
+# * removing ‘/home/ubuntu/R/x86_64-pc-linux-gnu-library/4.4/evmix’
+# ERROR: dependencies ‘S4Arrays’, ‘IRanges’, ‘XVector’ are not available for package ‘SparseArray’
+# * removing ‘/home/ubuntu/R/x86_64-pc-linux-gnu-library/4.4/SparseArray’
+# ERROR: dependencies ‘IRanges’, ‘GenomeInfoDb’, ‘XVector’ are not available for package ‘GenomicRanges’
+# * removing ‘/home/ubuntu/R/x86_64-pc-linux-gnu-library/4.4/GenomicRanges’
+# ERROR: dependencies ‘IRanges’, ‘S4Arrays’, ‘SparseArray’ are not available for package ‘DelayedArray’
+# * removing ‘/home/ubuntu/R/x86_64-pc-linux-gnu-library/4.4/DelayedArray’
+# ERROR: dependencies ‘GenomicRanges’, ‘IRanges’, ‘GenomeInfoDb’, ‘S4Arrays’, ‘DelayedArray’ are not available for package ‘SummarizedExperiment’
+# * removing ‘/home/ubuntu/R/x86_64-pc-linux-gnu-library/4.4/SummarizedExperiment’
+# ERROR: dependencies ‘SummarizedExperiment’, ‘GenomicRanges’, ‘DelayedArray’ are not available for package ‘SingleCellExperiment’
+# * removing ‘/home/ubuntu/R/x86_64-pc-linux-gnu-library/4.4/SingleCellExperiment’

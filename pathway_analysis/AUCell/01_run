@@ -1,0 +1,51 @@
+#/usr/bin/env
+#-----------------------------------------------------------------------
+# description : AUCell analysis
+# author      : songnsnow
+# date        : 240831
+# notes       : 
+#-----------------------------------------------------------------------
+# Set directory
+setwd('/home/ubuntu/analysis/AUCell')
+
+# Load packages
+library(AUCell)
+library(Seurat)
+
+# Extract expression matrix from SeuratObject --------------------------------
+# i.e. Reading from a text file
+exprMatrix <- read.table("myCountsMatrix.tsv")
+
+# or single-cell experiment
+exprMatrix <- assay(mySingleCellExperiment)
+
+### Convert to sparse:
+exprMatrix <- as(exprMatrix, "dgCMatrix")
+
+
+# Get gene sets --------------------------------------------------------------
+pathways <- msigdbr("Homo sapiens", "H") %>%
+  format_pathways()
+
+
+# Score signature genes ----------------------------------------------------
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="cells_AUC.RData")
+
+# Extra
+cells_rankings <- AUCell_buildRankings(exprMatrix, plotStats=FALSE)
+cells_AUC <- AUCell_calcAUC(geneSets, cells_rankings)
+
+# Determine cells with given gene signatures -------------------------------
+set.seed(333)
+par(mfrow=c(3,3)) 
+cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist=TRUE, assign=TRUE) 
+
+# Thresholds calculated for each gene set stored in $aucThr slot
+cells_assignment$Oligodendrocyte_Cahoy$aucThr$thresholds
+cells_assignment$Oligodendrocyte_Cahoy$aucThr$selected  #Threshold selected automatically for a given gene set
+
+
+# Plotting -----------------------------------------------------------------
+# Plot with gene signature scores

@@ -1,0 +1,364 @@
+# installation ----------------------------------------------------------------------------------------------------------------
+# install.packages(c('numbat'), dependencies = TRUE)  # doesn't work
+install.packages('devtools')
+devtools::install_github("https://github.com/kharchenkolab/numbat")  # downloaded by git
+
+# run docker container
+docker run --name numbat -v /data/project/RCC_PBMC_HWS/SS/numbat:/mnt/mydata -it pkharchenkolab/numbat-rbase:main /bin/bash
+
+
+# download references ---------------------------------------------------------------------------------------------------------
+#1000G SNP VCF
+# hg38
+wget https://sourceforge.net/projects/cellsnp/files/SNPlist/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf.gz
+# hg19
+wget https://sourceforge.net/projects/cellsnp/files/SNPlist/genome1K.phase3.SNP_AF5e2.chr1toX.hg19.vcf.gz
+
+#1000G Reference Panel
+# hg38
+wget http://pklab.med.harvard.edu/teng/data/1000G_hg38.zip
+# hg19
+wget http://pklab.med.harvard.edu/teng/data/1000G_hg19.zip
+
+# separate barcode by donor --------------------------------------------------------------------------------------------------------
+# load libraries
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(ggplot2)
+
+# load data
+dt <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+dt <- SetIdent(dt, value = dt@meta.data$id)
+rcc.1 <- subset(dt, idents = c('RCC.1')) #1024
+rcc.2 <- subset(dt, idents = c('RCC.2')) #1393
+rcc.3 <- subset(dt, idents = c('RCC.3')) #1476
+rcc.4 <- subset(dt, idents = c('RCC.4')) #255
+rcc.5 <- subset(dt, idents = c('RCC.5')) #1670
+rcc.6 <- subset(dt, idents = c('RCC.6')) #948
+rcc.7 <- subset(dt, idents = c('RCC.7')) #1105
+rcc.8 <- subset(dt, idents = c('RCC.8')) #12418
+
+# make barcode file by donor
+barcodes <- rownames(rcc.1@meta.data)
+write.table(barcodes, file = '/data/project/RCC_PBMC_HWS/SS/numbat/rcc.1_barcodes.tsv', sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
+barcodes <- rownames(rcc.2@meta.data)
+write.table(barcodes, file = '/data/project/RCC_PBMC_HWS/SS/numbat/rcc.2_barcodes.tsv', sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
+barcodes <- rownames(rcc.3@meta.data)
+write.table(barcodes, file = '/data/project/RCC_PBMC_HWS/SS/numbat/rcc.3_barcodes.tsv', sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
+barcodes <- rownames(rcc.4@meta.data)
+write.table(barcodes, file = '/data/project/RCC_PBMC_HWS/SS/numbat/rcc.4_barcodes.tsv', sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
+barcodes <- rownames(rcc.5@meta.data)
+write.table(barcodes, file = '/data/project/RCC_PBMC_HWS/SS/numbat/rcc.5_barcodes.tsv', sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
+barcodes <- rownames(rcc.6@meta.data)
+write.table(barcodes, file = '/data/project/RCC_PBMC_HWS/SS/numbat/rcc.6_barcodes.tsv', sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
+barcodes <- rownames(rcc.7@meta.data)
+write.table(barcodes, file = '/data/project/RCC_PBMC_HWS/SS/numbat/rcc.7_barcodes.tsv', sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
+barcodes <- rownames(rcc.8@meta.data)
+write.table(barcodes, file = '/data/project/RCC_PBMC_HWS/SS/numbat/rcc.8_barcodes.tsv', sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
+
+# make matrix file by donor
+matrix <- rcc.1@assays[["RNA"]]@counts
+saveRDS(matrix, '/data/project/RCC_PBMC_HWS/SS/numbat/input/rcc.1_matrix.rds')
+matrix <- rcc.2@assays[["RNA"]]@counts
+saveRDS(matrix, '/data/project/RCC_PBMC_HWS/SS/numbat/input/rcc.2_matrix.rds')
+matrix <- rcc.3@assays[["RNA"]]@counts
+saveRDS(matrix, '/data/project/RCC_PBMC_HWS/SS/numbat/input/rcc.3_matrix.rds')
+matrix <- rcc.4@assays[["RNA"]]@counts
+saveRDS(matrix, '/data/project/RCC_PBMC_HWS/SS/numbat/input/rcc.4_matrix.rds')
+matrix <- rcc.5@assays[["RNA"]]@counts
+saveRDS(matrix, '/data/project/RCC_PBMC_HWS/SS/numbat/input/rcc.5_matrix.rds')
+matrix <- rcc.6@assays[["RNA"]]@counts
+saveRDS(matrix, '/data/project/RCC_PBMC_HWS/SS/numbat/input/rcc.6_matrix.rds')
+matrix <- rcc.7@assays[["RNA"]]@counts
+saveRDS(matrix, '/data/project/RCC_PBMC_HWS/SS/numbat/input/rcc.7_matrix.rds')
+matrix <- rcc.8@assays[["RNA"]]@counts
+saveRDS(matrix, '/data/project/RCC_PBMC_HWS/SS/numbat/input/rcc.8_matrix.rds')
+
+
+# run preprocessing script ----------------------------------------------------------------------------------------------------
+docker start numbat  # open docker container
+docker exec -it numbat bash  # access running container
+
+# install singularity
+conda install -c conda-forge singularity
+
+# singularity run \
+#    --bind /mnt/isilon/ \
+#    --cleanenv -H /mnt/isilon/cscb/xxx/code/04b_NumBat \
+#    /mnt/isilon/cscb/xxx/code/04b_NumBat/numbat-rbase_latest.sif
+
+# make allele count by donor
+Rscript numbat/inst/bin/pileup_and_phase.R \
+    --label rcc.1 \
+    --samples rcc.1 \
+    --bams /mnt/mydata/input/possorted_genome_bam.bam \
+    --barcodes /mnt/mydata/input/rcc.1_barcodes.tsv \
+    --outdir /mnt/mydata/output/rcc.1 \
+    --gmap /Eagle_v2.4.1/tables/genetic_map_hg38_withX.txt.gz \
+    --snpvcf /data/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf \
+    --paneldir /data/1000G_hg38 \
+    --ncores 4
+
+Rscript numbat/inst/bin/pileup_and_phase.R \
+    --label rcc.2 \
+    --samples rcc.2 \
+    --bams /mnt/mydata/input/possorted_genome_bam.bam \
+    --barcodes /mnt/mydata/input/rcc.2_barcodes.tsv \
+    --outdir /mnt/mydata/output/rcc.2 \
+    --gmap /Eagle_v2.4.1/tables/genetic_map_hg38_withX.txt.gz \
+    --snpvcf /data/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf \
+    --paneldir /data/1000G_hg38 \
+    --ncores 8
+
+Rscript numbat/inst/bin/pileup_and_phase.R \
+    --label rcc.3 \
+    --samples rcc.3 \
+    --bams /mnt/mydata/input/possorted_genome_bam.bam \
+    --barcodes /mnt/mydata/input/rcc.3_barcodes.tsv \
+    --outdir /mnt/mydata/output/rcc.3 \
+    --gmap /Eagle_v2.4.1/tables/genetic_map_hg38_withX.txt.gz \
+    --snpvcf /data/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf \
+    --paneldir /data/1000G_hg38 \
+    --ncores 20
+
+Rscript numbat/inst/bin/pileup_and_phase.R \
+    --label rcc.4 \
+    --samples rcc.4 \
+    --bams /mnt/mydata/input/possorted_genome_bam.bam \
+    --barcodes /mnt/mydata/input/rcc.4_barcodes.tsv \
+    --outdir /mnt/mydata/output/rcc.4 \
+    --gmap /Eagle_v2.4.1/tables/genetic_map_hg38_withX.txt.gz \
+    --snpvcf /data/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf \
+    --paneldir /data/1000G_hg38 \
+    --ncores 20
+
+Rscript numbat/inst/bin/pileup_and_phase.R \
+    --label rcc.5 \
+    --samples rcc.5 \
+    --bams /mnt/mydata/input/possorted_genome_bam.bam \
+    --barcodes /mnt/mydata/input/rcc.5_barcodes.tsv \
+    --outdir /mnt/mydata/output/rcc.5 \
+    --gmap /Eagle_v2.4.1/tables/genetic_map_hg38_withX.txt.gz \
+    --snpvcf /data/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf \
+    --paneldir /data/1000G_hg38 \
+    --ncores 20
+
+Rscript numbat/inst/bin/pileup_and_phase.R \
+    --label rcc.6 \
+    --samples rcc.6 \
+    --bams /mnt/mydata/input/possorted_genome_bam.bam \
+    --barcodes /mnt/mydata/input/rcc.6_barcodes.tsv \
+    --outdir /mnt/mydata/output/rcc.6 \
+    --gmap /Eagle_v2.4.1/tables/genetic_map_hg38_withX.txt.gz \
+    --snpvcf /data/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf \
+    --paneldir /data/1000G_hg38 \
+    --ncores 20
+
+Rscript numbat/inst/bin/pileup_and_phase.R \
+    --label rcc.7 \
+    --samples rcc.7 \
+    --bams /mnt/mydata/input/possorted_genome_bam.bam \
+    --barcodes /mnt/mydata/input/rcc.7_barcodes.tsv \
+    --outdir /mnt/mydata/output/rcc.7 \
+    --gmap /Eagle_v2.4.1/tables/genetic_map_hg38_withX.txt.gz \
+    --snpvcf /data/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf \
+    --paneldir /data/1000G_hg38 \
+    --ncores 20
+
+Rscript numbat/inst/bin/pileup_and_phase.R \
+    --label rcc.8 \
+    --samples rcc.8 \
+    --bams /mnt/mydata/input/possorted_genome_bam.bam \
+    --barcodes /mnt/mydata/input/rcc.8_barcodes.tsv \
+    --outdir /mnt/mydata/output/rcc.8 \
+    --gmap /Eagle_v2.4.1/tables/genetic_map_hg38_withX.txt.gz \
+    --snpvcf /data/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf \
+    --paneldir /data/1000G_hg38 \
+    --ncores 20
+
+Rscript numbat/inst/bin/pileup_and_phase.R \
+    --label norm_1 \
+    --samples norm_1 \
+    --bams /mnt/mydata/input/possorted_genome_bam.bam \
+    --barcodes /mnt/mydata/input/norm_1_barcodes.tsv \
+    --outdir /mnt/mydata/output/norm_1 \
+    --gmap /Eagle_v2.4.1/tables/genetic_map_hg38_withX.txt.gz \
+    --snpvcf /data/genome1K.phase3.SNP_AF5e2.chr1toX.hg38.vcf \
+    --paneldir /data/1000G_hg38 \
+    --ncores 20
+
+# make own references
+# count_mat is a gene x cell raw count matrices
+# cell_annot is a dataframe with columns "cell" and "group"
+ref_internal = aggregate_counts(count_mat, cell_annot)  # didn't use
+
+
+# running numbat ---------------------------------------------------------------------------------------------------------
+# load numbat
+library(numbat)
+
+#rcc.1
+# load data
+count_mat <- readRDS('/mnt/mydata/input/rcc.1_matrix.rds')
+df_allele <- read.delim('/mnt/mydata/output/rcc.1/rcc.1_allele_counts.tsv')
+# run
+out = run_numbat(
+    count_mat, # gene x cell integer UMI count matrix
+    ref_hca, # reference expression profile, a gene x cell type normalized expression level matrix
+    df_allele, # allele dataframe generated by pileup_and_phase script
+    genome = "hg38",
+    t = 1e-5,
+    ncores = 4,
+    plot = TRUE,
+    out_dir = '/mnt/mydata/output/rcc_1',
+    max_entropy = 0.8
+)
+
+#rcc.2
+count_mat <- readRDS('/mnt/mydata/input/rcc.2_matrix.rds')
+df_allele <- read.delim('/mnt/mydata/output/rcc.2/rcc.2_allele_counts.tsv')
+out = run_numbat(
+    count_mat, # gene x cell integer UMI count matrix 
+    ref_hca, # reference expression profile, a gene x cell type normalized expression level matrix
+    df_allele, # allele dataframe generated by pileup_and_phase script
+    genome = "hg38",
+    t = 1e-5,
+    ncores = 20,
+    plot = TRUE,
+    out_dir = '/mnt/mydata/output/rcc_2'
+)
+
+#rcc.3
+count_mat <- readRDS('/mnt/mydata/input/rcc.3_matrix.rds')
+df_allele <- read.delim('/mnt/mydata/output/rcc.3/rcc.3_allele_counts.tsv')
+out = run_numbat(
+    count_mat, # gene x cell integer UMI count matrix 
+    ref_hca, # reference expression profile, a gene x cell type normalized expression level matrix
+    df_allele, # allele dataframe generated by pileup_and_phase script
+    genome = "hg38",
+    t = 1e-5,
+    ncores = 20,
+    plot = TRUE,
+    out_dir = '/mnt/mydata/output/rcc_3'
+)
+
+#rcc.4
+count_mat <- readRDS('/mnt/mydata/input/rcc.4_matrix.rds')
+df_allele <- read.delim('/mnt/mydata/output/rcc.4/rcc.4_allele_counts.tsv')
+out = run_numbat(
+    count_mat, # gene x cell integer UMI count matrix 
+    ref_hca, # reference expression profile, a gene x cell type normalized expression level matrix
+    df_allele, # allele dataframe generated by pileup_and_phase script
+    genome = "hg38",
+    t = 1e-5,
+    ncores = 20,
+    plot = TRUE,
+    out_dir = '/mnt/mydata/output/rcc_4'
+)
+
+#rcc.5
+count_mat <- readRDS('/mnt/mydata/input/rcc.5_matrix.rds')
+df_allele <- read.delim('/mnt/mydata/output/rcc.5/rcc.5_allele_counts.tsv')
+out = run_numbat(
+    count_mat, # gene x cell integer UMI count matrix 
+    ref_hca, # reference expression profile, a gene x cell type normalized expression level matrix
+    df_allele, # allele dataframe generated by pileup_and_phase script
+    genome = "hg38",
+    t = 1e-5,
+    ncores = 20,
+    plot = TRUE,
+    out_dir = '/mnt/mydata/output/rcc_5'
+)
+
+#rcc.6
+count_mat <- readRDS('/mnt/mydata/input/rcc.6_matrix.rds')
+df_allele <- read.delim('/mnt/mydata/output/rcc.6/rcc.6_allele_counts.tsv')
+out = run_numbat(
+    count_mat, # gene x cell integer UMI count matrix 
+    ref_hca, # reference expression profile, a gene x cell type normalized expression level matrix
+    df_allele, # allele dataframe generated by pileup_and_phase script
+    genome = "hg38",
+    t = 1e-5,
+    ncores = 20,
+    plot = TRUE,
+    out_dir = '/mnt/mydata/output/rcc_6'
+)
+
+#rcc.7
+count_mat <- readRDS('/mnt/mydata/input/rcc.7_matrix.rds')
+df_allele <- read.delim('/mnt/mydata/output/rcc.7/rcc.7_allele_counts.tsv')
+out = run_numbat(
+    count_mat, # gene x cell integer UMI count matrix 
+    ref_hca, # reference expression profile, a gene x cell type normalized expression level matrix
+    df_allele, # allele dataframe generated by pileup_and_phase script
+    genome = "hg38",
+    t = 1e-5,
+    ncores = 20,
+    plot = TRUE,
+    out_dir = '/mnt/mydata/output/rcc_7'
+)
+
+#rcc.8
+count_mat <- readRDS('/mnt/mydata/input/rcc.8_matrix.rds')
+df_allele <- read.delim('/mnt/mydata/output/rcc.8/rcc.8_allele_counts.tsv')
+out = run_numbat(
+    count_mat, # gene x cell integer UMI count matrix 
+    ref_hca, # reference expression profile, a gene x cell type normalized expression level matrix
+    df_allele, # allele dataframe generated by pileup_and_phase script
+    genome = "hg38",
+    t = 1e-5,
+    ncores = 20,
+    plot = TRUE,
+    out_dir = '/mnt/mydata/output/rcc_8'
+)
+
+
+# interpret results ------------------------------------------------------------------------------------------------
+# load libraries
+library(ggplot2)
+library(numbat)
+library(dplyr)
+library(glue)
+library(data.table)
+library(ggtree)
+library(stringr)
+library(tidygraph)
+library(patchwork)
+
+# combine NAG and AG subtypes
+
+
+
+
+
+# summarize output files to Numbat object
+nb_test = Numbat$new(out_dir = '/mnt/mydata/output/rcc_1')
+
+# plot
+mypal = c('1' = 'gray', '2' = "#377EB8", '3' = "#4DAF4A", '4' = "#984EA3")
+  
+nb_test$plot_phylo_heatmap(
+  clone_bar = TRUE, 
+  p_min = 0.9,
+  pal_clone = mypal
+)
+ggsave('/mnt/mydata/plot/heatmap_rcc.1.png',width=10, height=3,scale=1.5)
+
+# pseudobulk
+nb_test$bulk_clones %>% 
+  filter(n_cells > 50) %>%
+  plot_bulks(
+    min_LLR = 10, # filtering CNVs by evidence
+    legend = TRUE
+  )
+ggsave('/mnt/mydata/plot/bulk_rcc.1.png',width=10, height=3,scale=1.8)
+
+# consensus
+nb_test$plot_consensus()
+ggsave('/mnt/mydata/plot/consensus_rcc.1.png',width=10, height=3,scale=1.5)
+
+
+
+
+

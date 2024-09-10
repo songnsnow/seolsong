@@ -1,0 +1,247 @@
+# installation
+
+# install.packages("./", repos=NULL, type="source")
+# install.packages("remotes")
+# remotes::install_github("broadinstitute/inferCNV")
+
+# Error: Bioconductor version '3.17' requires R version '4.3'; use `version = '3.16'`
+conda install -c conda-forge r-base=4.3.1
+
+R
+if (!requireNamespace("BiocManager", quietly = TRUE))
+install.packages("BiocManager")
+1
+BiocManager::install(version = "3.17")
+q()
+n
+
+conda install -c conda-forge r-seurat
+conda install -c conda-forge r-rjags
+
+R
+BiocManager::install("infercnv") #됐다ㅏㅏㅏㅏ!!!!!
+
+# load library
+library(infercnv)
+library(Seurat)
+
+
+# NAG (as normal) vs. AG ------------------------------------------------------------------------------------------------
+# prepare files ######################################
+# raw_counts_matrix 
+obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+counts_matrix <- GetAssayData(obj, slot="counts")
+
+# annotations file 
+dt <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_4_1.rds')
+df <- data.frame(dt$id,dt$cell.type)
+save <- df
+AG <- c('RCC.5','RCC.6','RCC.7','RCC.8')
+
+df$dt.cell.type <- as.character(df$dt.cell.type)
+for (i in 1:nrow(df)) {
+  if(df[i, "dt.id"] %in% AG) {
+    df[i, "dt.cell.type"] <- 'AG'
+  }
+}
+
+df$dt.id <- NULL
+df <- tibble::rownames_to_column(df, "cell")
+write.table(df, '/data/project/RCC_PBMC_HWS/SS/inferCNV/annotations_nagasnorm.txt', quote = FALSE, sep='\t', row.names=FALSE, col.names=FALSE)
+#####################################################
+
+
+# create inferCNV object
+infercnv_obj = CreateInfercnvObject(raw_counts_matrix = counts_matrix,
+                                    annotations_file = "/data/project/RCC_PBMC_HWS/SS/inferCNV/annotations_nagasnorm.txt",
+                                    delim = "\t",
+                                    gene_order_file = "/data/project/RCC_PBMC_HWS/SS/inferCNV/hg38_gencode_v27.txt",
+                                    ref_group_names = c("MC","CD4+T","CD8+T","B","NK","plasma","DC","gdT","MAIT","platelet","Treg")) 
+
+# run inferCNV
+infercnv_obj = infercnv::run(infercnv_obj,
+                             cutoff = 0.1, # cutoff=1 works well for Smart-seq2, and cutoff=0.1 works well for 10x Genomics
+                             out_dir = '/data/project/RCC_PBMC_HWS/SS/inferCNV/NAG_vs_AG', 
+                             cluster_by_groups = TRUE, 
+                             denoise = TRUE,
+                             HMM = TRUE)
+
+
+
+# normal (public) vs. NAG ------------------------------------------------------------------------------------------------
+# raw_counts_matrix 
+obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/inferCNV/n_nag.rds')
+counts_matrix <- GetAssayData(obj, slot="counts")
+
+# annotations file 
+dt <- readRDS('/data/project/RCC_PBMC_HWS/SS/inferCNV/n_nag.rds')
+df <- data.frame(dt$type)
+df <- tibble::rownames_to_column(df, "cell")
+write.table(df, '/data/project/RCC_PBMC_HWS/SS/inferCNV/annotations_n_nag.txt', quote = FALSE, sep='\t', row.names=FALSE, col.names=FALSE)
+
+
+infercnv_obj = CreateInfercnvObject(raw_counts_matrix = counts_matrix,
+                                    annotations_file = "/data/project/RCC_PBMC_HWS/SS/inferCNV/annotations_n_nag.txt",
+                                    delim = "\t",
+                                    gene_order_file = "/data/project/RCC_PBMC_HWS/SS/inferCNV/hg38_gencode_v27.txt",
+                                    ref_group_names = c('NORM')) 
+
+# run inferCNV
+infercnv_obj = infercnv::run(infercnv_obj,
+                             cutoff = 0.1,
+                             out_dir = '/data/project/RCC_PBMC_HWS/SS/inferCNV/N_vs_NAG', 
+                             cluster_by_groups = TRUE, 
+                             denoise = TRUE,
+                             HMM = TRUE)
+
+
+# normal (public) vs. AG -------------------------------------------------------------------------------------------------
+# raw_counts_matrix 
+obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/inferCNV/n_ag.rds')
+counts_matrix <- GetAssayData(obj, slot="counts")
+
+# annotations file 
+dt <- readRDS('/data/project/RCC_PBMC_HWS/SS/inferCNV/n_ag.rds')
+df <- data.frame(dt$type)
+df <- tibble::rownames_to_column(df, "cell")
+write.table(df, '/data/project/RCC_PBMC_HWS/SS/inferCNV/annotations_n_ag.txt', quote = FALSE, sep='\t', row.names=FALSE, col.names=FALSE)
+
+# create infercnv obj
+infercnv_obj = CreateInfercnvObject(raw_counts_matrix = counts_matrix,
+                                    annotations_file = "/data/project/RCC_PBMC_HWS/SS/inferCNV/annotations_n_ag.txt",
+                                    delim = "\t",
+                                    gene_order_file = "/data/project/RCC_PBMC_HWS/SS/inferCNV/hg38_gencode_v27.txt",
+                                    ref_group_names = c('NORM1','NORM2','NORM3','NORM4')) 
+
+# run inferCNV
+infercnv_obj = infercnv::run(infercnv_obj,
+                             cutoff = 0.1, 
+                             out_dir = '/data/project/RCC_PBMC_HWS/SS/inferCNV/N_vs_AG_2', 
+                             cluster_by_groups = TRUE, 
+                             denoise = TRUE,
+                             HMM = TRUE)
+
+# error....
+
+
+# normal (public) vs. AG (230919) -------------------------------------------------------------------------------------------------
+ulimit -s unlimited # in terminal
+
+# raw_counts_matrix 
+obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/inferCNV/n_nag.rds')
+counts_matrix <- GetAssayData(obj, slot="counts")
+
+# annotations file 
+# dt <- readRDS('/data/project/RCC_PBMC_HWS/SS/inferCNV/n_nag.rds')
+# df <- data.frame(dt$type)
+# df <- tibble::rownames_to_column(df, "cell")
+# write.table(df, '/data/project/RCC_PBMC_HWS/SS/inferCNV/annotations_n_ag.txt', quote = FALSE, sep='\t', row.names=FALSE, col.names=FALSE)
+
+obj <- SetIdent(obj, value = obj@meta.data$type)
+
+# create infercnv obj
+infercnv_obj = CreateInfercnvObject(raw_counts_matrix = counts_matrix,
+                                    annotations_file = as.matrix(obj@active.ident),
+                                    delim = "\t",
+                                    # max_cells_per_group = 1000,
+                                    gene_order_file = "/data/project/RCC_PBMC_HWS/SS/inferCNV/hg38_gencode_v27.txt",
+                                    ref_group_names = c('NORM1','NORM2','NORM3','NORM4')) 
+
+# run inferCNV
+infercnv_obj = infercnv::run(infercnv_obj,
+                             cutoff = 0.1, 
+                             out_dir = '/data/project/RCC_PBMC_HWS/SS/inferCNV/N_vs_NAG_2', 
+                             cluster_by_groups = TRUE, 
+                             denoise = TRUE,
+                             HMM = TRUE)
+
+# error....
+
+
+
+# normal (public_10x) vs. AG (230922) -------------------------------------------------------------------------------------------------
+ulimit -s unlimited # in terminal
+
+# raw_counts_matrix 
+obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/inferCNV/n_nag.rds')
+counts_matrix <- GetAssayData(obj, slot="counts")
+
+# annotations file 
+# dt <- readRDS('/data/project/RCC_PBMC_HWS/SS/inferCNV/n_nag.rds')
+# df <- data.frame(dt$type)
+# df <- tibble::rownames_to_column(df, "cell")
+# write.table(df, '/data/project/RCC_PBMC_HWS/SS/inferCNV/annotations_n_ag.txt', quote = FALSE, sep='\t', row.names=FALSE, col.names=FALSE)
+
+obj <- SetIdent(obj, value = obj@meta.data$type)
+max_cells <- as.integer(200)
+
+# create infercnv obj
+infercnv_obj = CreateInfercnvObject(raw_counts_matrix = counts_matrix,
+                                    annotations_file = as.matrix(obj@active.ident),
+                                    delim = "\t",
+                                    # max_cells_per_group = max_cells,
+                                    gene_order_file = "/data/project/RCC_PBMC_HWS/SS/inferCNV/hg38_gencode_v27.txt",
+                                    ref_group_names = c('NORM')) 
+
+# run inferCNV
+infercnv_obj = infercnv::run(infercnv_obj,
+                             cutoff = 0.1, 
+                             out_dir = '/data/project/RCC_PBMC_HWS/SS/inferCNV/N_vs_NAG_3', 
+                             cluster_by_groups = TRUE, 
+                             denoise = TRUE,
+                             HMM = TRUE)
+
+
+
+# normal (public_10x) vs. downsampled RCC (231010) -------------------------------------------------------------------------------------------------
+ulimit -s unlimited # in terminal
+
+# downsample RCC
+obj <- readRDS('/data/project/RCC_PBMC_HWS/SS/seurat/rds/seurat_3_1.rds')
+obj$type <- obj$id
+obj$id <- NULL
+obj <- SetIdent(obj, value = obj@meta.data$type)
+r1 <- subset(obj,idents='RCC.1', downsample=500, seed=1)
+r2 <- subset(obj,idents='RCC.2', downsample=500, seed=1)
+r3 <- subset(obj,idents='RCC.3', downsample=500, seed=1)
+r4 <- subset(obj,idents='RCC.4', downsample=500, seed=1)
+r5 <- subset(obj,idents='RCC.5', downsample=500, seed=1)
+r6 <- subset(obj,idents='RCC.6', downsample=500, seed=1)
+r7 <- subset(obj,idents='RCC.7', downsample=500, seed=1)
+r8 <- subset(obj,idents='RCC.8', downsample=500, seed=1)
+rcc <- merge(r1, c(r2, r3, r4, r5, r6, r7, r8))
+rcc$donor.id <- NULL
+rcc$subtype <- NULL
+rcc$subtype2 <- NULL
+rcc$seurat_clusters <- NULL
+
+dt <- readRDS('/data/project/RCC_PBMC_HWS/SS/inferCNV/JSLee_NORM/dbl_removed.rds')
+dt$seurat_clusters <- NULL
+dt <- SetIdent(dt, value = dt@meta.data$orig.ident)
+norm <- subset(dt,idents='pbmc', downsample=1000, seed=1)
+norm$type <- 'NORM'
+
+merged <- merge(rcc, y=norm)
+merged <- SetIdent(merged, value = merged@meta.data$type)
+counts_matrix <- GetAssayData(merged, slot="counts")
+
+
+df <- data.frame(merged$type)
+df <- tibble::rownames_to_column(df, "cell")
+write.table(df, '/data/project/RCC_PBMC_HWS/SS/inferCNV/annotations_rcc_jslee.txt', quote = FALSE, sep='\t', row.names=FALSE, col.names=FALSE)
+
+
+# create infercnv obj
+infercnv_obj = CreateInfercnvObject(raw_counts_matrix = counts_matrix,
+                                    annotations_file = as.matrix(merged@active.ident),
+                                    delim = "\t",
+                                    gene_order_file = "/data/project/RCC_PBMC_HWS/SS/inferCNV/hg38_gencode_v27.txt",
+                                    ref_group_names = c('NORM1','NORM2','NORM3','NORM4')) # error if datasets with different normalization assays are merged
+
+# run inferCNV
+infercnv_obj = infercnv::run(infercnv_obj,
+                             cutoff = 0.1, 
+                             out_dir = '/data/project/RCC_PBMC_HWS/SS/inferCNV/RCC_vs_jslee', 
+                             cluster_by_groups = TRUE, 
+                             denoise = TRUE,
+                             HMM = TRUE)

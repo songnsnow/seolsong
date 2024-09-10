@@ -1,0 +1,87 @@
+subgroup2_order <- c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2", 
+                   "dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint")
+
+clonalQuant(combined.TCR, 
+            cloneCall="strict", 
+            chain = "both", 
+            scale = TRUE,
+            order.by = subgroup2_order
+                   )
+ggsave(paste('figures/02_clonalQuant.png',sep=''),width=10, height=5,scale=1)
+
+# clonalQuant(combined.TCR, 
+#             cloneCall="strict", 
+#             chain = "both", 
+#             scale = TRUE,
+#           #   order.by = subgroup2_order,
+#             group.by = "subgroup"
+#                    )
+# ggsave(paste('figures/02_clonalQuant_subgroup.png',sep=''),width=10, height=5,scale=1)
+
+
+clonalAbundance(combined.TCR, cloneCall = "gene", scale = FALSE,
+            order.by = subgroup2_order)
+ggsave(paste('figures/02_clonalAbundance.png',sep=''),width=10, height=5,scale=1)
+
+
+clonalProportion(combined.TCR, 
+                 cloneCall = "gene",
+            order.by = subgroup2_order) 
+ggsave(paste('figures/02_clonalProportion.png',sep=''),width=10, height=5,scale=1)
+
+clonalProportion(combined.TCR, 
+                 cloneCall = "nt",
+                 clonalSplit = c(1, 5, 10, 100, 1000, 10000),
+            order.by = subgroup2_order) 
+ggsave(paste('figures/02_clonalProportion_2.png',sep=''),width=10, height=5,scale=1)
+
+clonalHomeostasis(combined.TCR, 
+                  cloneCall = "gene")
+ggsave(paste('figures/02_clonalHomeostasis_1.png',sep=''),width=10, height=5,scale=1)
+     
+clonalHomeostasis(combined.TCR, 
+                  cloneCall = "gene",
+                  cloneSize = c(Rare = 0.001, Small = 0.003, Medium = 0.005, Large = 0.01, Hyperexpanded =
+    1))
+ggsave(paste('figures/02_clonalHomeostasis_2.png',sep=''),width=10, height=5,scale=1)
+
+clonalDiversity(combined.TCR, 
+                cloneCall = "gene", metrics = "gini.simpson")
+ggsave(paste('figures/02_clonalDiversity.png',sep=''),width=3.5, height=4,scale=1)
+
+# clonalDiversity(combined.TCR, 
+#                 cloneCall = "gene", 
+#                 group.by = "celltype.l2")
+# ggsave(paste('figures/02_clonalDiversity_2.png',sep=''),width=10, height=5,scale=1)
+
+clonalOverlap(combined.TCR, 
+              cloneCall = "strict", 
+              method = "morisita") + 
+              theme(axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels by 90 degrees
+               )
+ggsave(paste('figures/02_clonalOverlap.png',sep=''),width=6, height=4,scale=1)
+
+clonalOverlap(combined.TCR, 
+              cloneCall = "strict", 
+              method = "raw")
+ggsave(paste('figures/02_clonalOverlap_raw.png',sep=''),width=10, height=5,scale=1)
+
+clonalCompare(combined.TCR, 
+                  top.clones = 10, 
+                  relabel.clones=TRUE,
+                  samples = c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2"), 
+                  order.by = c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2"),
+                  cloneCall="aa", 
+                  graph = "alluvial")
+ggsave(paste('figures/02_clonalCompare_uCN.png',sep=''),width=7, height=5,scale=1,dpi=300)
+
+clonalCompare(combined.TCR, 
+                  top.clones = 10, 
+                  relabel.clones=TRUE,
+                  samples = c("dCN_Init","dCN_Nivo/ipi_1", "dCN_Nivo_maint"), 
+                  order.by = c("dCN_Init","dCN_Nivo/ipi_1", "dCN_Nivo_maint"), 
+                  cloneCall="aa", 
+                  graph = "alluvial")
+ggsave(paste('figures/02_clonalCompare_dCN.png',sep=''),width=7, height=5,scale=1,dpi=300)
+
+
