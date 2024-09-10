@@ -1,0 +1,14 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : T cytotoxic signature
+# author      : songnsnow
+# date        : 240902
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+dt <- readRDS('rds/04-2.rds')
+table(dt$subgroup,dt$subgroup_2)    #check
+
+'FAS','CD3G','ICAM1','ITGB2','FASLG','CD3D','CD3E','CD247','CD3D','PRF1','ITGAL','ITGB2','HLA-A','HLA-A','ITGAL','B2M','GZMB','PRF1','FAS','FAS','CD247'

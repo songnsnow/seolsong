@@ -1,0 +1,716 @@
+#/usr/bin/env
+#-----------------------------------------------------------------------
+# description : AUCell analysis
+# author      : songnsnow
+# date        : 240831
+# notes       : 
+#-----------------------------------------------------------------------
+# Set directory
+setwd('/home/ubuntu/analysis/AUCell')
+
+# Load packages
+library(AUCell)
+library(Seurat)
+library(SingleCellExperiment)
+
+# Extract expression matrix from SeuratObject --------------------------------
+# i.e. Reading from a text file
+exprMatrix <- read.table("myCountsMatrix.tsv")
+
+# or single-cell experiment
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-2.rds')
+sce <- Seurat::as.SingleCellExperiment(dt)
+exprMatrix <- assay(sce)
+
+### Convert to sparse:
+exprMatrix <- as(exprMatrix, "dgCMatrix")
+
+
+# Get gene sets --------------------------------------------------------------
+library(GSEABase)
+genes <- c("gene1", "gene2", "gene3")
+geneSets <- GeneSet(genes, setName="geneSet1")
+geneSets
+
+genes <- c('FAS','ICAM1','ITGB2','FASLG','CD247','PRF1','ITGAL','ITGB2','HLA-A','B2M','GZMB','PRF1','CD247')
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# pathways <- msigdbr("Homo sapiens", "H") %>%
+#   format_pathways()
+
+# Score signature genes ----------------------------------------------------
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="cells_AUC.RData")
+
+# Extra
+cells_rankings <- AUCell_buildRankings(exprMatrix, plotStats=FALSE)
+cells_AUC <- AUCell_calcAUC(geneSets, cells_rankings)
+
+# Determine cells with given gene signatures -------------------------------
+set.seed(333)
+par(mfrow=c(3,3)) 
+cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist=TRUE, assign=TRUE) 
+
+# Thresholds calculated for each gene set stored in $aucThr slot
+cells_assignment$Oligodendrocyte_Cahoy$aucThr$thresholds
+cells_assignment$Oligodendrocyte_Cahoy$aucThr$selected  #Threshold selected automatically for a given gene set
+
+
+
+# GENE SIG
+# Load necessary libraries
+library(S4Vectors)
+library(SummarizedExperiment)
+library(tibble)
+library(reshape2)
+library(tidyr)
+library(Seurat)
+library(ggplot2)
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction='wnn.umap',features = "geneSet1", pt.size = 1.5, cols = c("lightgrey", "red")) +
+  theme_minimal() +
+  labs(title = "GeneSet1 Expression")
+ggsave(paste('figures/01_geneset1.png',sep=''),width=5, height=5,scale=1)
+
+
+
+## Cytotoxic Pathway ################################################################################################################
+genes <- c("THY1", "CD3G", "ICAM1", "ITGB2", "CD3D", "CD3E", "CD247", 
+             "ITGAL", "CD8A", "CD28", "PTPRC", "CD2")
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="cells_AUC_Cyt.RData")
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "Cytotoxic Expression")
+ggsave(paste('figures/01_cyt.png',sep=''),width=7, height=7,scale=,dpi=300)
+
+# separately by subgroup
+Idents(dt) <- 'subgroup'
+dt_1 <- subset(dt, idents='uCN')
+dt_2 <- subset(dt, idents='dCN')
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "uCN Cytotoxic")
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "dCN Cytotoxic")
+p1+p2+ 
+  plot_layout(ncol = 2)
+ggsave(paste('figures/01_cyt_subgroup.png',sep=''),width=14, height=7,scale=,dpi=300)
+
+
+## Progenitor exhausted cd8 ################################################################################################################
+genes <- c("IL7R", "GPR183", "LMNA", "NR4A3", "TCF7", "MGAT4A", "CD55", "AIM1", 
+             "PER1", "FOSL2", "EGR1", "TSPYL2", "YPEL5", "CSRNP1", "REL", "SKIL", 
+             "PIK3R1", "FOXP1", "RGCC", "PFKFB3", "MYADM", "ZFP36L2", "USP36", 
+             "TC2N", "FAM177A1", "BTG2", "TSC22D2", "FAM65B", "STAT4", "RGPD5", 
+             "NEU1", "IFRD1", "PDE4B", "NR4A1")
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="cells_AUC_Pex.RData")
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "Progenitor Exhausted CD8+")
+ggsave(paste('figures/01_pex.png',sep=''),width=7, height=7,scale=,dpi=300)
+
+# separately by subgroup
+Idents(dt) <- 'subgroup'
+dt_1 <- subset(dt, idents='uCN')
+dt_2 <- subset(dt, idents='dCN')
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "uCN Progenitor Exhausted CD8+")
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "dCN Progenitor Exhausted CD8+")
+p1+p2+ 
+  plot_layout(ncol = 2)
+ggsave(paste('figures/01_pex_subgroup.png',sep=''),width=14, height=7,scale=,dpi=300)
+
+
+## Terminally exhausted cd8 ################################################################################################################
+genes <- c("NKG7", "RAC2", "CLIC1", "GZMA", "PRF1", "APOBEC3C", "RHOA", 
+                    "CCL4", "COTL1", "PSME2", "HLA-DPA1", "HMGN2", "LSP1", "PSMB9", 
+                    "LCK", "SRP14", "ARPC3", "ARPC1B", "TPI1", "APOBEC3G", "HLA-DPB1", 
+                    "LDHB", "ATP5G2", "MYL12B", "PSMB8", "PSMA7", "HLA-DRB1", "SUB1", 
+                    "ARPC4", "CTSW", "SUMO2", "TAP1", "GZMB", "RARRES3", "CAP1", "UCP2", 
+                    "PPIB", "RAN", "CHCHD2", "PARK7", "HCST", "GABARAP", "HLA-DRA", 
+                    "SOD1", "CAPZB", "S100A4", "RNASEK", "PPP1CA", "PKM", "IFI16", 
+                    "ACTR3", "ITM2A", "SLC25A5", "PGAM1", "ANXA6", "CD27", "ATP5B", 
+                    "LYST", "PSMB10", "MIF", "LY6E", "ANKRD10", "CTSD", "UBE2L6", 
+                    "EDF1", "NONO", "TIGIT", "FKBP1A", "IL2RB", "HMGN1", "ATP5L", 
+                    "GZMH", "STAT1", "GPI", "LCP2", "GBP2", "ARL6IP5", "CCL4L1", 
+                    "PRDM1", "OST4", "PDCD1", "HINT1", "HNRNPF", "GBP5", "COX7C", 
+                    "ARPC5", "GIMAP4", "XRCC6", "C17orf62", "PRR13", "HLA-DRB5", 
+                    "WDR1", "ARL6IP1", "ISG15", "ATP5A1", "EWSR1", "COPE", "HAVCR2", 
+                    "EIF3H", "ANXA5", "C11orf58", "IFI6", "SIRPG", "CALM3", "SHISA5", 
+                    "DENND2D", "MAP4K1", "BUB3", "IKZF3", "SNRPB", "EID1", "PSMB1", 
+                    "PTPN6", "NDUFA13", "SSR4", "COX8A", "PTPN7", "MAT2B", "PSTPIP1", 
+                    "GSTP1", "PSMB3", "IRF9", "TRAF3IP3", "GIMAP7", "PSMA2", "SASH3", 
+                    "CD164", "ETNK1", "S100A11", "KLRD1", "MOB1A", "SH2D1A", "UBE2V1", 
+                    "SH3KBP1", "ATP5G3", "PSMA5", "MT2A", "LAT", "IFNG", "RAB27A", 
+                    "COX5A", "DDOST", "PSMB4", "SRP9", "BRK1", "TNFRSF1B", "EIF4H", 
+                    "GMFG", "ANXA2", "TCEB2", "RBPJ", "COX6A1", "UBXN1", "PSMD8", 
+                    "CD63", "ATP6V0E1", "NDUFB8", "CTSC", "SNRPD2", "ATP5C1", 
+                    "PRELID1", "COX7A2", "PSMA6", "ECH1", "U2AF1", "HMGB2", "FAM49B", 
+                    "CD38", "TSPO", "IDH2", "CASP4", "CCL3", "TRMT112", "SURF4", 
+                    "PSMA1", "YWHAE", "LASP1", "PYHIN1", "ANAPC16", "TUBB", "CSNK2B", 
+                    "PRKAR1A", "SLAMF7", "GNG5", "PRDX1", "RQCD1", "CCNDBP1", 
+                    "INPP4B", "CDK2AP2", "CBX3", "RPN1", "SPCS1", "PSMA3", "SIT1", 
+                    "XRCC5", "EIF3C", "CXCR6", "COX6C", "M6PR", "ANP32E")
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="cells_AUC_Tex.RData")
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "Terminally Exhausted CD8+")
+ggsave(paste('figures/01_tex.png',sep=''),width=7, height=7,scale=,dpi=300)
+
+# separately by subgroup
+Idents(dt) <- 'subgroup'
+dt_1 <- subset(dt, idents='uCN')
+dt_2 <- subset(dt, idents='dCN')
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "uCN Terminally Exhausted CD8+")
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "dCN Terminally Exhausted CD8+")
+p1+p2+ 
+  plot_layout(ncol = 2)
+ggsave(paste('figures/01_tex_subgroup.png',sep=''),width=14, height=7,scale=,dpi=300)
+
+
+
+
+
+## T =====================================================================================================
+#/usr/bin/env
+#-----------------------------------------------------------------------
+# description : AUCell analysis
+# author      : songnsnow
+# date        : 240831
+# notes       : 
+#-----------------------------------------------------------------------
+# Set directory
+setwd('/home/ubuntu/analysis/AUCell')
+
+# Load packages
+library(AUCell)
+library(Seurat)
+library(SingleCellExperiment)
+
+# load
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-1-6_uCN.rds')
+sce <- Seurat::as.SingleCellExperiment(dt)
+exprMatrix <- assay(sce)
+
+
+
+## Cytotoxic Pathway ################################################################################################################
+genes <- c("THY1", "CD3G", "ICAM1", "ITGB2", "CD3D", "CD3E", "CD247", 
+             "ITGAL", "CD8A", "CD28", "PTPRC", "CD2")
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="02_cells_AUC_Cyt.RData")
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "Cytotoxic Expression")
+ggsave(paste('figures/02_cyt.png',sep=''),width=7, height=7,scale=,dpi=300)
+
+# separately by subgroup
+Idents(dt) <- 'subgroup_2'
+dt_1 <- subset(dt, idents="uCN_Init")
+dt_2 <- subset(dt, idents="uCN_CN")
+dt_3 <- subset(dt, idents="uCN_Nivo/ipi_2")
+
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T1 Cytotoxic")
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal()+
+  labs(title = "T2 Cytotoxic")
+p3 <- FeaturePlot(dt_3, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T3 Cytotoxic")
+p1+p2+p3+
+  plot_layout(ncol = 3)
+ggsave(paste('figures/02_cyt_subgroup2.png',sep=''),width=13, height=4,scale=,dpi=300)
+
+
+
+## Progenitor exhausted cd8 ################################################################################################################
+genes <- c("IL7R", "GPR183", "LMNA", "NR4A3", "TCF7", "MGAT4A", "CD55", "AIM1", 
+             "PER1", "FOSL2", "EGR1", "TSPYL2", "YPEL5", "CSRNP1", "REL", "SKIL", 
+             "PIK3R1", "FOXP1", "RGCC", "PFKFB3", "MYADM", "ZFP36L2", "USP36", 
+             "TC2N", "FAM177A1", "BTG2", "TSC22D2", "FAM65B", "STAT4", "RGPD5", 
+             "NEU1", "IFRD1", "PDE4B", "NR4A1")
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="02_cells_AUC_Pex.RData")
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "Progenitor Exhausted CD8+")
+ggsave(paste('figures/02_pex.png',sep=''),width=7, height=7,scale=,dpi=300)
+
+# separately by subgroup
+Idents(dt) <- 'subgroup_2'
+dt_1 <- subset(dt, idents="uCN_Init")
+dt_2 <- subset(dt, idents="uCN_CN")
+dt_3 <- subset(dt, idents="uCN_Nivo/ipi_2")
+
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T1 Progenitor Exhausted CD8+")
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T2 Progenitor Exhausted CD8+")
+p3 <- FeaturePlot(dt_3, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T3 Progenitor Exhausted CD8+")
+p1+p2+p3+
+  plot_layout(ncol = 3)
+ggsave(paste('figures/02_pex_subgroup2.png',sep=''),width=13, height=4,scale=,dpi=300)
+
+
+## Terminally exhausted cd8 ################################################################################################################
+genes <- c("NKG7", "RAC2", "CLIC1", "GZMA", "PRF1", "APOBEC3C", "RHOA", 
+                    "CCL4", "COTL1", "PSME2", "HLA-DPA1", "HMGN2", "LSP1", "PSMB9", 
+                    "LCK", "SRP14", "ARPC3", "ARPC1B", "TPI1", "APOBEC3G", "HLA-DPB1", 
+                    "LDHB", "ATP5G2", "MYL12B", "PSMB8", "PSMA7", "HLA-DRB1", "SUB1", 
+                    "ARPC4", "CTSW", "SUMO2", "TAP1", "GZMB", "RARRES3", "CAP1", "UCP2", 
+                    "PPIB", "RAN", "CHCHD2", "PARK7", "HCST", "GABARAP", "HLA-DRA", 
+                    "SOD1", "CAPZB", "S100A4", "RNASEK", "PPP1CA", "PKM", "IFI16", 
+                    "ACTR3", "ITM2A", "SLC25A5", "PGAM1", "ANXA6", "CD27", "ATP5B", 
+                    "LYST", "PSMB10", "MIF", "LY6E", "ANKRD10", "CTSD", "UBE2L6", 
+                    "EDF1", "NONO", "TIGIT", "FKBP1A", "IL2RB", "HMGN1", "ATP5L", 
+                    "GZMH", "STAT1", "GPI", "LCP2", "GBP2", "ARL6IP5", "CCL4L1", 
+                    "PRDM1", "OST4", "PDCD1", "HINT1", "HNRNPF", "GBP5", "COX7C", 
+                    "ARPC5", "GIMAP4", "XRCC6", "C17orf62", "PRR13", "HLA-DRB5", 
+                    "WDR1", "ARL6IP1", "ISG15", "ATP5A1", "EWSR1", "COPE", "HAVCR2", 
+                    "EIF3H", "ANXA5", "C11orf58", "IFI6", "SIRPG", "CALM3", "SHISA5", 
+                    "DENND2D", "MAP4K1", "BUB3", "IKZF3", "SNRPB", "EID1", "PSMB1", 
+                    "PTPN6", "NDUFA13", "SSR4", "COX8A", "PTPN7", "MAT2B", "PSTPIP1", 
+                    "GSTP1", "PSMB3", "IRF9", "TRAF3IP3", "GIMAP7", "PSMA2", "SASH3", 
+                    "CD164", "ETNK1", "S100A11", "KLRD1", "MOB1A", "SH2D1A", "UBE2V1", 
+                    "SH3KBP1", "ATP5G3", "PSMA5", "MT2A", "LAT", "IFNG", "RAB27A", 
+                    "COX5A", "DDOST", "PSMB4", "SRP9", "BRK1", "TNFRSF1B", "EIF4H", 
+                    "GMFG", "ANXA2", "TCEB2", "RBPJ", "COX6A1", "UBXN1", "PSMD8", 
+                    "CD63", "ATP6V0E1", "NDUFB8", "CTSC", "SNRPD2", "ATP5C1", 
+                    "PRELID1", "COX7A2", "PSMA6", "ECH1", "U2AF1", "HMGB2", "FAM49B", 
+                    "CD38", "TSPO", "IDH2", "CASP4", "CCL3", "TRMT112", "SURF4", 
+                    "PSMA1", "YWHAE", "LASP1", "PYHIN1", "ANAPC16", "TUBB", "CSNK2B", 
+                    "PRKAR1A", "SLAMF7", "GNG5", "PRDX1", "RQCD1", "CCNDBP1", 
+                    "INPP4B", "CDK2AP2", "CBX3", "RPN1", "SPCS1", "PSMA3", "SIT1", 
+                    "XRCC5", "EIF3C", "CXCR6", "COX6C", "M6PR", "ANP32E")
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="02_cells_AUC_Tex.RData")
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "Terminally Exhausted CD8+")
+ggsave(paste('figures/02_tex.png',sep=''),width=7, height=7,scale=,dpi=300)
+
+# separately by subgroup
+Idents(dt) <- 'subgroup_2'
+dt_1 <- subset(dt, idents="uCN_Init")
+dt_2 <- subset(dt, idents="uCN_CN")
+dt_3 <- subset(dt, idents="uCN_Nivo/ipi_2")
+
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T1 Terminally Exhausted CD8+")
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T2 Terminally Exhausted CD8+")
+p3 <- FeaturePlot(dt_3, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T3 Terminally Exhausted CD8+")
+p1+p2+p3+
+  plot_layout(ncol = 3)
+ggsave(paste('figures/02_tex_subgroup2.png',sep=''),width=13, height=4,scale=,dpi=300)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -----------------==========================================---------------------------------------------------
+# load
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-1-6_dCN.rds')
+sce <- Seurat::as.SingleCellExperiment(dt)
+exprMatrix <- assay(sce)
+
+## Cytotoxic Pathway ################################################################################################################
+genes <- c("THY1", "CD3G", "ICAM1", "ITGB2", "CD3D", "CD3E", "CD247", 
+             "ITGAL", "CD8A", "CD28", "PTPRC", "CD2")
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="02_cells_AUC_Cyt.RData")
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "Cytotoxic Expression")
+ggsave(paste('figures/02_cyt.png',sep=''),width=7, height=7,scale=,dpi=300)
+
+# separately by subgroup
+Idents(dt) <- 'subgroup_2'
+dt_1 <- subset(dt, idents="dCN_Init")
+dt_2 <- subset(dt, idents="dCN_Nivo/ipi_1")
+dt_3 <- subset(dt, idents="dCN_Nivo_maint")
+
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T1 Cytotoxic")
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal()+
+  labs(title = "T2 Cytotoxic")
+p3 <- FeaturePlot(dt_3, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T3 Cytotoxic")
+p1+p2+p3+
+  plot_layout(ncol = 3)
+ggsave(paste('figures/02_cyt_subgroup2.png',sep=''),width=13, height=4,scale=,dpi=300)
+
+
+
+## Progenitor exhausted cd8 ################################################################################################################
+genes <- c("IL7R", "GPR183", "LMNA", "NR4A3", "TCF7", "MGAT4A", "CD55", "AIM1", 
+             "PER1", "FOSL2", "EGR1", "TSPYL2", "YPEL5", "CSRNP1", "REL", "SKIL", 
+             "PIK3R1", "FOXP1", "RGCC", "PFKFB3", "MYADM", "ZFP36L2", "USP36", 
+             "TC2N", "FAM177A1", "BTG2", "TSC22D2", "FAM65B", "STAT4", "RGPD5", 
+             "NEU1", "IFRD1", "PDE4B", "NR4A1")
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="02_cells_AUC_Pex.RData")
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "Progenitor Exhausted CD8+")
+ggsave(paste('figures/02_pex.png',sep=''),width=7, height=7,scale=,dpi=300)
+
+# separately by subgroup
+Idents(dt) <- 'subgroup_2'
+dt_1 <- subset(dt, idents="dCN_Init")
+dt_2 <- subset(dt, idents="dCN_Nivo/ipi_1")
+dt_3 <- subset(dt, idents="dCN_Nivo_maint")
+
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T1 Progenitor Exhausted CD8+")
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T2 Progenitor Exhausted CD8+")
+p3 <- FeaturePlot(dt_3, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T3 Progenitor Exhausted CD8+")
+p1+p2+p3+
+  plot_layout(ncol = 3)
+ggsave(paste('figures/02_pex_subgroup2.png',sep=''),width=13, height=4,scale=,dpi=300)
+
+
+## Terminally exhausted cd8 ################################################################################################################
+genes <- c("NKG7", "RAC2", "CLIC1", "GZMA", "PRF1", "APOBEC3C", "RHOA", 
+                    "CCL4", "COTL1", "PSME2", "HLA-DPA1", "HMGN2", "LSP1", "PSMB9", 
+                    "LCK", "SRP14", "ARPC3", "ARPC1B", "TPI1", "APOBEC3G", "HLA-DPB1", 
+                    "LDHB", "ATP5G2", "MYL12B", "PSMB8", "PSMA7", "HLA-DRB1", "SUB1", 
+                    "ARPC4", "CTSW", "SUMO2", "TAP1", "GZMB", "RARRES3", "CAP1", "UCP2", 
+                    "PPIB", "RAN", "CHCHD2", "PARK7", "HCST", "GABARAP", "HLA-DRA", 
+                    "SOD1", "CAPZB", "S100A4", "RNASEK", "PPP1CA", "PKM", "IFI16", 
+                    "ACTR3", "ITM2A", "SLC25A5", "PGAM1", "ANXA6", "CD27", "ATP5B", 
+                    "LYST", "PSMB10", "MIF", "LY6E", "ANKRD10", "CTSD", "UBE2L6", 
+                    "EDF1", "NONO", "TIGIT", "FKBP1A", "IL2RB", "HMGN1", "ATP5L", 
+                    "GZMH", "STAT1", "GPI", "LCP2", "GBP2", "ARL6IP5", "CCL4L1", 
+                    "PRDM1", "OST4", "PDCD1", "HINT1", "HNRNPF", "GBP5", "COX7C", 
+                    "ARPC5", "GIMAP4", "XRCC6", "C17orf62", "PRR13", "HLA-DRB5", 
+                    "WDR1", "ARL6IP1", "ISG15", "ATP5A1", "EWSR1", "COPE", "HAVCR2", 
+                    "EIF3H", "ANXA5", "C11orf58", "IFI6", "SIRPG", "CALM3", "SHISA5", 
+                    "DENND2D", "MAP4K1", "BUB3", "IKZF3", "SNRPB", "EID1", "PSMB1", 
+                    "PTPN6", "NDUFA13", "SSR4", "COX8A", "PTPN7", "MAT2B", "PSTPIP1", 
+                    "GSTP1", "PSMB3", "IRF9", "TRAF3IP3", "GIMAP7", "PSMA2", "SASH3", 
+                    "CD164", "ETNK1", "S100A11", "KLRD1", "MOB1A", "SH2D1A", "UBE2V1", 
+                    "SH3KBP1", "ATP5G3", "PSMA5", "MT2A", "LAT", "IFNG", "RAB27A", 
+                    "COX5A", "DDOST", "PSMB4", "SRP9", "BRK1", "TNFRSF1B", "EIF4H", 
+                    "GMFG", "ANXA2", "TCEB2", "RBPJ", "COX6A1", "UBXN1", "PSMD8", 
+                    "CD63", "ATP6V0E1", "NDUFB8", "CTSC", "SNRPD2", "ATP5C1", 
+                    "PRELID1", "COX7A2", "PSMA6", "ECH1", "U2AF1", "HMGB2", "FAM49B", 
+                    "CD38", "TSPO", "IDH2", "CASP4", "CCL3", "TRMT112", "SURF4", 
+                    "PSMA1", "YWHAE", "LASP1", "PYHIN1", "ANAPC16", "TUBB", "CSNK2B", 
+                    "PRKAR1A", "SLAMF7", "GNG5", "PRDX1", "RQCD1", "CCNDBP1", 
+                    "INPP4B", "CDK2AP2", "CBX3", "RPN1", "SPCS1", "PSMA3", "SIT1", 
+                    "XRCC5", "EIF3C", "CXCR6", "COX6C", "M6PR", "ANP32E")
+genes <- unique(genes)
+geneSets <- GeneSet(genes, setName='geneSet1')
+geneSets
+
+# Calculate signature enrichment score on each cell
+cells_AUC <- AUCell_run(exprMatrix, geneSets)
+save(cells_AUC, file="02_cells_AUC_Tex.RData")
+
+# Extract the AUC matrix from the cells_AUC object
+auc_matrix <- cells_AUC@assays@data$AUC
+
+# Convert the matrix to a data frame
+auc_df <- as.data.frame(auc_matrix)
+auc_df <- t(auc_df)
+dt <- AddMetaData(dt, metadata = auc_df)
+
+# Plot geneSet1 using FeaturePlot
+FeaturePlot(dt, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.05) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "Terminally Exhausted CD8+")
+ggsave(paste('figures/02_tex.png',sep=''),width=7, height=7,scale=,dpi=300)
+
+# separately by subgroup
+Idents(dt) <- 'subgroup_2'
+dt_1 <- subset(dt, idents="dCN_Init")
+dt_2 <- subset(dt, idents="dCN_Nivo/ipi_1")
+dt_3 <- subset(dt, idents="dCN_Nivo_maint")
+
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T1 Terminally Exhausted CD8+") + 
+  geom_density_2d(data = umap_data, aes(x = umap_1, y = umap_2), contour_var = 'ndensity', bins = 15)
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T2 Terminally Exhausted CD8+")
+p3 <- FeaturePlot(dt_3, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme
+  theme_minimal() +
+  labs(title = "T3 Terminally Exhausted CD8+")
+p1+p2+p3+
+  plot_layout(ncol = 3)
+ggsave(paste('figures/02_tex_subgroup2.png',sep=''),width=13, height=4,scale=,dpi=300)
+
+
+
+# Contour plot ========================================================================
+umap_data <- as.data.frame(dt@reductions$wnn.umap@cell.embeddings)
+colnames(umap_data) <- c("umap_1", "umap_2")
+
+# Add cluster metadata
+umap_data$batch <- as.factor(dt@meta.data$batch)
+umap_data$subgroup <- as.factor(dt@meta.data$subgroup)
+umap_data$donor <- as.factor(dt@meta.data$donor)
+umap_data$id <- as.factor(dt@meta.data$id)
+umap_data$timepoint <- as.factor(dt@meta.data$timepoint)
+umap_data$subgroup_2 <- as.factor(dt@meta.data$subgroup_2)
+levels(umap_data$subgroup_2) <- c("dCN_Init","dCN_Nivo/ipi_1","dCN_Nivo_maint")
+# -------------------------------------------------------------
+# Load required libraries
+library(ggplot2)
+library(patchwork) # For combining plots
+
+# Define coordinate limits based on a common UMAP range across your data
+umap_xlim <- range(umap_data$umap_1)
+umap_ylim <- range(umap_data$umap_2)
+
+# Plot p1 with consistent UMAP coordinates
+p1 <- FeaturePlot(dt_1, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  geom_density_2d_filled(data = umap_data, aes(x = umap_1, y = umap_2, fill = after_stat(level)), 
+                         contour_var = 'ndensity', bins = 15, alpha = 0.5) +  # Adjust alpha for transparency
+  scale_fill_grey(start = 1, end = 0) +  # Grayscale fill, darker for higher density
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme for points
+  coord_cartesian(xlim = umap_xlim, ylim = umap_ylim) +  # Set consistent UMAP coordinates
+  theme_minimal() +
+  labs(title = "T1 Terminally Exhausted CD8+") +
+  theme(panel.background = element_rect(fill = "transparent", color = NA),  # Transparent background
+        plot.background = element_rect(fill = "transparent", color = NA))
+
+# Plot p2 with consistent UMAP coordinates
+p2 <- FeaturePlot(dt_2, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  geom_density_2d_filled(data = umap_data, aes(x = umap_1, y = umap_2, fill = after_stat(level)), 
+                         contour_var = 'ndensity', bins = 15, alpha = 0.5) +  # Adjust alpha for transparency
+  scale_fill_grey(start = 1, end = 0) +  # Grayscale fill, darker for higher density
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme for points
+  coord_cartesian(xlim = umap_xlim, ylim = umap_ylim) +  # Set consistent UMAP coordinates
+  theme_minimal() +
+  labs(title = "T2 Terminally Exhausted CD8+") +
+  theme(panel.background = element_rect(fill = "transparent", color = NA),  # Transparent background
+        plot.background = element_rect(fill = "transparent", color = NA))
+
+# Plot p3 with consistent UMAP coordinates
+p3 <- FeaturePlot(dt_3, reduction = 'wnn.umap', features = "geneSet1", pt.size = 0.5) +
+  geom_density_2d_filled(data = umap_data, aes(x = umap_1, y = umap_2, fill = after_stat(level)), 
+                         contour_var = 'ndensity', bins = 15, alpha = 0.5) +  # Adjust alpha for transparency
+  scale_fill_grey(start = 1, end = 0) +  # Grayscale fill, darker for higher density
+  scale_color_viridis_c(option = "viridis") +  # Adding Viridis color scheme for points
+  coord_cartesian(xlim = umap_xlim, ylim = umap_ylim) +  # Set consistent UMAP coordinates
+  theme_minimal() +
+  labs(title = "T3 Terminally Exhausted CD8+") +
+  theme(panel.background = element_rect(fill = "transparent", color = NA),  # Transparent background
+        plot.background = element_rect(fill = "transparent", color = NA))
+
+# Combine plots with a single legend
+combined_plot <- (p1 + p2 + p3) + plot_layout(ncol = 3, guides = "collect") & 
+  theme(legend.position = "bottom")  # Place legend at the bottom
+
+# Save the combined plot with a transparent background
+ggsave(filename = 'figures/02_tex_subgroup2.png', plot = combined_plot, width = 15, height = 6, scale = 1, dpi = 300, bg = "transparent")

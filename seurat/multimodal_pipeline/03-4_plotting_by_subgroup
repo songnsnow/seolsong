@@ -1,0 +1,284 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : plotting
+# author      : songnsnow
+# date        : 240702
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load packages
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(ggpubr)
+library(tidyr)
+
+# library(BPCells)
+# library(presto)
+# library(glmGamPoi)
+# library(SeuratWrappers)
+# library(TFBSTools)
+# library(scDataviz)
+# library(ComplexHeatmap) # for heatmap
+# library(colorspace) # for heatmap color palette
+
+
+# Load data
+dt <- readRDS('rds/03-1.rds')
+
+# Set levels
+dt$subgroup_2 <- factor(dt$subgroup_2, levels = c("uCN_Init","uCN_CN","uCN_Nivo/ipi_2","dCN_Init","dCN_Nivo/ipi_1","dCN_Nivo_maint"))
+dt$timepoint <- factor(dt$timepoint, levels = c('Init','Nivo/ipi_1','CN','Nivo/ipi_2','Nivo_maint'))
+dt$subgroup <- factor(dt$subgroup, levels = c('uCN','dCN'))
+dt$celltype.l1 <- factor(dt$celltype.l1, levels = c('CD4+ T','CD8+ T','Treg','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','pDC','cDC','B','Plasma'))
+
+# UMAP ==================================================================================
+### by celltype 1
+Idents(dt) <- 'celltype.l1'
+DimPlot(dt, reduction = "wnn.umap", split.by = "batch", label=TRUE, repel=TRUE) + NoLegend()
+ggsave(paste('figures/03-4_batch.l1.png',sep=''),width=13, height=6,scale=1.5)
+
+DimPlot(dt, reduction = "wnn.umap", split.by = "id", ncol=5) +  guides(color = guide_legend(override.aes = list(size=4), ncol=1))
+ggsave(paste('figures/03-4_id.l1.png',sep=''),width=13, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "wnn.umap", split.by = "donor", ncol=5) + guides(color = guide_legend(override.aes = list(size=4), ncol=1))
+ggsave(paste('figures/03-4_donor.l1.png',sep=''),width=13, height=4,scale=1.5)
+
+DimPlot(dt, reduction = "wnn.umap", split.by = "timepoint", ncol=5) + guides(color = guide_legend(override.aes = list(size=4), ncol=1))
+ggsave(paste('figures/03-4_timepoint.l1.png',sep=''),width=13, height=4,scale=1.5)
+
+DimPlot(dt, reduction = "wnn.umap", split.by = "subgroup") + guides(color = guide_legend(override.aes = list(size=4), ncol=1))
+ggsave(paste('figures/03-4_subgroup.l1.png',sep=''),width=10, height=4,scale=1.5)
+
+DimPlot(dt, reduction = "wnn.umap", split.by = "subgroup_2", ncol=3) + guides(color = guide_legend(override.aes = list(size=4), ncol=1))
+ggsave(paste('figures/03-4_subgroup2.l1.png',sep=''),width=13, height=8,scale=1.5)
+# =========================================================================================
+
+
+
+# Contour plot ========================================================================
+umap_data <- as.data.frame(dt@reductions$wnn.umap@cell.embeddings)
+colnames(umap_data) <- c("umap_1", "umap_2")
+
+# Add cluster metadata
+umap_data$batch <- as.factor(dt@meta.data$batch)
+umap_data$subgroup <- as.factor(dt@meta.data$subgroup)
+umap_data$donor <- as.factor(dt@meta.data$donor)
+umap_data$id <- as.factor(dt@meta.data$id)
+umap_data$timepoint <- as.factor(dt@meta.data$timepoint)
+umap_data$subgroup_2 <- as.factor(dt@meta.data$subgroup_2)
+levels(umap_data$subgroup_2) <- c("uCN_Init","uCN_CN","uCN_Nivo/ipi_2","dCN_Init","dCN_Nivo/ipi_1","dCN_Nivo_maint")
+# -------------------------------------------------------------
+
+# Plotting ----------------------------------------------------
+# Function to plot subgroup comparison within uCN
+plot_uCN_comparison <- function(data) {
+  ggplot(data %>% filter(subgroup == "uCN" & subgroup_2 %in% c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2")),
+         aes(x = umap_1, y = umap_2, fill = after_stat(level))) +
+    geom_density_2d_filled(contour_var = 'ndensity', bins = 15) +
+    scale_x_continuous(limits = c(min(data$umap_1) - 0.1 * diff(range(data$umap_1)),
+                                   max(data$umap_1) + 0.1 * diff(range(data$umap_1)))) +
+    scale_y_continuous(limits = c(min(data$umap_2) - 0.1 * diff(range(data$umap_2)),
+                                   max(data$umap_2) + 0.1 * diff(range(data$umap_2)))) +
+    facet_wrap(vars(subgroup_2), nrow = 1) +
+    theme(
+      axis.title.x = element_blank(),  # Remove x-axis label
+      axis.title.y = element_blank(),  # Remove y-axis label
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.grid = element_blank()
+    ) +
+    guides(fill = FALSE) +  # Remove fill legend
+    labs(title = "uCN Subgroup Comparison")
+}
+
+# Function to plot subgroup comparison within dCN
+plot_dCN_comparison <- function(data) {
+  ggplot(data %>% filter(subgroup == "dCN" & subgroup_2 %in% c("dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint")),
+         aes(x = umap_1, y = umap_2, fill = after_stat(level))) +
+    geom_density_2d_filled(contour_var = 'ndensity', bins = 15) +
+    scale_x_continuous(limits = c(min(data$umap_1) - 0.1 * diff(range(data$umap_1)),
+                                   max(data$umap_1) + 0.1 * diff(range(data$umap_1)))) +
+    scale_y_continuous(limits = c(min(data$umap_2) - 0.1 * diff(range(data$umap_2)),
+                                   max(data$umap_2) + 0.1 * diff(range(data$umap_2)))) +
+    facet_wrap(vars(subgroup_2), nrow = 1) +
+    theme(
+      axis.title.x = element_blank(),  # Remove x-axis label
+      axis.title.y = element_blank(),  # Remove y-axis label
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.grid = element_blank()
+    ) +
+    guides(fill = FALSE) +  # Remove fill legend
+    labs(title = "dCN Subgroup Comparison")
+}
+
+# Generate plots
+plot_uCN <- plot_uCN_comparison(umap_data)
+plot_dCN <- plot_dCN_comparison(umap_data)
+
+# Arrange plots vertically
+combined_plot <- plot_uCN / plot_dCN
+
+# Save the combined plot
+ggsave('figures/03-4_contour_plot_combined.png', combined_plot, width = 10, height = 10, bg = "white")
+# ===================================================================================================
+
+
+
+# cell proportions ====================================================================================
+# level order
+patient_order <- c('RCC_A','RCC_B','RCC_C','RCC_D','RCC_E')
+subgroup2_order <- c("uCN_Init","uCN_CN","uCN_Nivo/ipi_2","dCN_Init","dCN_Nivo/ipi_1","dCN_Nivo_maint")
+subgroup_order <- c('uCN','dCN')
+timepoint_order <- c('Init','Nivo/ipi_1','CN','Nivo/ipi_2','Nivo_maint')
+celltype_order <- c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma')
+
+levels(dt$id) <- patient_order
+levels(dt$subgroup_2) <- subgroup2_order
+levels(dt$subgroup) <- subgroup_order
+levels(dt$timepoint) <- timepoint_order
+
+dt$subgroup_2 <- factor(dt$subgroup_2, levels = subgroup2_order) # used this
+
+# dimplot ------------------------------------------------------------------
+# umap by subgroup2
+Idents(dt) <- 'celltype.l1'
+DimPlot(dt, reduction = "wnn.umap", split.by = "subgroup_2", ncol=3) + guides(color = guide_legend(override.aes = list(size=4), ncol=1))
+ggsave(paste('figures/03-4_l1_splitby_subgroup2.png',sep=''),width=7, height=5,scale=1.5)
+
+# bar plot -----------------------------------------------------------------
+Idents(dt) <- 'seurat_clusters'
+
+# bar plot
+patient_order <- c('RCC_A','RCC_B','RCC_C','RCC_D','RCC_E')
+subgroup_order <- c('uCN','dCN')
+timepoint_order <- c('Init','Nivo/ipi_1','CN','Nivo/ipi_2','Nivo_maint')
+
+# cell type by subgroup2
+df <- as.data.frame.matrix(table(dt$subgroup_2,dt$celltype.l1))
+df_per <- df[1:ncol(df)]/rowSums(df[1:ncol(df)])
+df_tib <- dplyr::as_tibble(df_per, rownames = "Subgroup2")
+df_tib <- gather(df_tib,key='Cell.Type',value='Percentage',2:ncol(df_tib))
+df_tib <- arrange(df_tib, Subgroup2)
+df_tib <- df_tib[order(df_tib$Subgroup2),]
+
+subgroup2_order <- c("uCN_Init","uCN_CN","uCN_Nivo/ipi_2","dCN_Init","dCN_Nivo/ipi_1","dCN_Nivo_maint")
+png(file='figures/03-4_bp_subgroup2_by_celltype.png',width=1200,height=1300,res=200)
+ggplot(df_tib, aes(x=factor(Subgroup2, levels=subgroup2_order),y=Percentage, fill=factor(Cell.Type,celltype_order))) +
+    geom_bar(position='fill',stat='identity') +
+    theme(axis.text.x = element_blank(),  # Remove x-axis text
+        #   axis.title.x = element_blank(),
+          axis.text.y = element_text(size = 12.5),
+          legend.text = element_text(size = 12.5)) +
+    xlab("Subgroup") + ylab("Percentage") + labs(fill="Cell type")
+dev.off()
+
+
+# dot plot -----------------------------------------------------------------
+library(viridis)
+library(tidyr)
+# celltype_order <- c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma')
+# cell type by donor ###########################################
+
+df_per <- df[1:ncol(df)]/rowSums(df[1:ncol(df)])
+df_tib <- dplyr::as_tibble(df_per, rownames = "Subgroup2")
+df_tib <- gather(df_tib,key='Cell.Type',value='Percentage',2:ncol(df_tib))
+df_tib <- arrange(df_tib, Subgroup2)
+df_tib$Percentage <- as.numeric(df_tib$Percentage)
+df_tib <- df_tib[order(df_tib$Subgroup2),]
+
+subgroup2_order <- rev(c("uCN_Init","uCN_CN","uCN_Nivo/ipi_2","dCN_Init","dCN_Nivo/ipi_1","dCN_Nivo_maint"))
+png(file='figures/03-4_dp_celltype_by_subgroup2.png',height=1500,width=3000,res=300)
+ggplot(df_tib) +
+    geom_point(aes(x=factor(Cell.Type, levels=celltype_order),y=factor(Subgroup2, levels=subgroup2_order),size=Percentage,color=Percentage))+
+    scale_fill_viridis(discrete = FALSE,aesthetics="color") +
+    theme_bw() +
+    theme(axis.text.x = element_text(size=11.5, angle=45, vjust=1, hjust=1),
+          axis.text.y = element_text(size = 11.5)) + 
+    scale_size(range = c(0.3,10)) +
+    xlab("Cell type") + ylab("Subgroup") + scale_y_discrete(position = "right")
+dev.off()
+
+
+
+
+
+# pairwise comparison =======================================================================
+plot_cell_proportions <- function(seurat_obj, cell_type, comparisons_uCN, comparisons_dCN) {
+  # Calculate cell type proportions
+  cell_proportions <- seurat_obj@meta.data %>%
+    group_by(subgroup_2) %>%
+    summarize(cell_proportion = sum(celltype.l1 == cell_type) / n())
+  
+  # Ensure the stages are ordered correctly
+  cell_proportions$subgroup_2 <- factor(cell_proportions$subgroup_2, levels = c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2", "dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint"))
+  
+  # Create separate datasets for uCN_ and dCN_ groups
+  cell_proportions_uCN <- cell_proportions %>% filter(grepl("^uCN_", subgroup_2))
+  cell_proportions_dCN <- cell_proportions %>% filter(grepl("^dCN_", subgroup_2))
+  
+  # Define colors for a professional look (adjust as needed)
+  line_color <- "#ff9999"  # Light salmon for lines
+  point_color <- "#66b3ff"  # Light blue for points
+  background_color <- "#ffffff"  # White background
+  text_color <- "#333333"  # Dark gray for text
+    
+# Plot for uCN_ groups
+cell_line_plot_uCN <- ggplot(cell_proportions_uCN, aes(x = subgroup_2, y = cell_proportion, group = 1)) +
+  geom_line(color = line_color, size = 1) +
+  geom_point(color = point_color, size = 3) +
+  labs(title = paste(cell_type, "Cells in uCN Groups"),
+       x = "Subgroup",
+       y = paste(cell_type, "Cell Proportion")) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.background = element_rect(fill = background_color, color = NA),
+    panel.background = element_rect(fill = background_color, color = NA),
+    panel.grid.major = element_line(color = "#e0e0e0"),  # Remove linetype for solid lines
+    panel.grid.minor = element_line(color = "#e0e0e0"),  # Remove linetype for solid lines
+    plot.title = element_text(color = text_color, size = 16, face = "bold", hjust = 0.5),
+    axis.title = element_text(color = text_color, size = 14, face = "bold"),
+    axis.text = element_text(color = text_color, size = 12)
+  )
+
+# Plot for dCN_ groups (same theme applied)
+cell_line_plot_dCN <- ggplot(cell_proportions_dCN, aes(x = subgroup_2, y = cell_proportion, group = 1)) +
+  geom_line(color = line_color, size = 1) +
+  geom_point(color = point_color, size = 3) +
+  labs(title = paste(cell_type, "Cells in dCN Groups"),
+       x = "Subgroup",
+       y = paste(cell_type, "Cell Proportion")) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.background = element_rect(fill = background_color, color = NA),
+    panel.background = element_rect(fill = background_color, color = NA),
+    panel.grid.major = element_line(color = "#e0e0e0"),  # Remove linetype for solid lines
+    panel.grid.minor = element_line(color = "#e0e0e0"),  # Remove linetype for solid lines
+    plot.title = element_text(color = text_color, size = 16, face = "bold", hjust = 0.5),
+    axis.title = element_text(color = text_color, size = 14, face = "bold"),
+    axis.text = element_text(color = text_color, size = 12)
+  )
+    
+  # Arrange uCN and dCN plots side by side using patchwork
+  combined_plot <- cell_line_plot_uCN + cell_line_plot_dCN
+  
+  # Save the combined plot
+  plot_file_combined <- paste0("figures/03-4_proportion_changes_", cell_type, "_combined.png")
+  ggsave(plot_file_combined, combined_plot, width = 11, height = 5, dpi = 300)
+}
+
+# Generate combined plots for NK, CD8+ T, and CD4+ T cells
+plot_cell_proportions(dt, "NK", comparisons_uCN, comparisons_dCN)
+plot_cell_proportions(dt, "CD8+ T", comparisons_uCN, comparisons_dCN)
+plot_cell_proportions(dt, "CD4+ T", comparisons_uCN, comparisons_dCN)
+plot_cell_proportions(dt, "pDC", comparisons_uCN, comparisons_dCN)
+plot_cell_proportions(dt, "cDC", comparisons_uCN, comparisons_dCN)
+plot_cell_proportions(dt, "CD14 Mono", comparisons_uCN, comparisons_dCN)
+plot_cell_proportions(dt, "CD16 Mono", comparisons_uCN, comparisons_dCN)
+plot_cell_proportions(dt, "B", comparisons_uCN, comparisons_dCN)
+plot_cell_proportions(dt, "Plasma", comparisons_uCN, comparisons_dCN)

@@ -1,0 +1,40 @@
+# download reference (for STAR)
+##homosapiens assembly 38: download from (https://console.cloud.google.com/storage/browser/genomics-public-data/resources/broad/hg38/v0;tab=objects?prefix=&forceOnObjectsSortingFiltering=false)
+###Homo_sapiens_assembly38.fasta
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.fasta
+###index
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.fasta.fai
+###dict
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dict
+##genecode v32, primary assembly annotation & unzip (gzip -d FILEPATH)
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_32/gencode.v32.primary_assembly.annotation.gtf.gz
+
+
+#download known indels
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi
+
+
+#download intervals
+wget https://storage.googleapis.com/gatk-test-data/intervals/star.gencode.v19.transcripts.patched_contigs.gtf
+wget https://storage.googleapis.com/genomics-public-data/resources/broad/hg38/v0/wgs_calling_regions.hg38.interval_list
+
+
+
+#gtfToCallingIntervals--------------------------------------------------------------------
+gtf <- read.table("/data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/wgs_calling_regions.hg38.interval_list", sep="\t")
+gtf <- subset(gtf, V3 == "exon")
+write.table(data.frame(chrom=gtf[,'V1'], start=gtf[,'V4'], end=gtf[,'V5']), "/home/songnsnow/download/STAR_run/reference/exome.bed", quote = F, sep="\t", col.names = F, row.names = F)
+
+awk '{print $1 "\t" ($2 - 1) "\t" $3}' /home/songnsnow/download/STAR_run/reference/exome.bed > /home/songnsnow/download/STAR_run/reference/exome.fixed.bed
+
+gatk \
+    BedToIntervalList \
+    -I /home/songnsnow/download/STAR_run/reference/exome.fixed.bed \
+    -O /home/songnsnow/download/STAR_run/reference/interval_list \
+    -SD /home/songnsnow/download/STAR_run/reference/Homo_sapiens_assembly38.dict
+#didn't work.. just used wgs hg38 interval list. also, star.gencode.v19 was hg37.

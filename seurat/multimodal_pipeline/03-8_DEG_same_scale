@@ -1,0 +1,173 @@
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+library(dplyr)
+library(tibble)
+library(colorspace) # for heatmap color palette
+library(magrittr)
+library(ggplot2)
+library(patchwork)
+# install.packages('devtools')
+# devtools::install_github('immunogenomics/presto') # for faster FindMarkers
+
+save <- dt
+dt@meta.data$subgroup_2_celltype.l1 <- paste(dt@meta.data$subgroup_2, dt@meta.data$celltype.l1, sep = "_")
+Idents(dt) <- "subgroup_2_celltype.l1"
+
+# Custom color palette ------------------------------------------
+custom_palette <- rev(colorRampPalette(brewer.pal(6, "RdBu"))(256))
+calm_palette <- desaturate(custom_palette, amount = 0.4) # Reduce saturation
+calm_palette <- lighten(calm_palette, amount = 0.1)     # Slightly lighten the colors
+rna_col <- circlize::colorRamp2(breaks = c(-2, -1, 0, 1, 2), colors = calm_palette[c(1, 64, 128, 192, 256)])
+
+create_custom_palette <- function(data, num_colors) {
+  data_min <- min(data, na.rm = TRUE)
+  data_max <- max(data, na.rm = TRUE)
+  breaks <- seq(data_min, data_max, length.out = num_colors)
+  palette <- rev(colorRampPalette(brewer.pal(9, "RdBu"))(num_colors))
+  return(list(palette = palette, breaks = breaks))
+}
+
+# heatmap function --------------------------------------------------
+# create_combined_heatmaps(
+  subgroups1 <- c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2")
+  subgroups2 <- c("dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint")
+  celltype <- "CD4+ T"
+  output_filename <- "figures/03-8_DEG_same_scale_CD4.png"
+# )
+# create_combined_heatmaps <- function(subgroups1, subgroups2, celltype, output_filename) {
+
+  # Helper function to generate heatmaps
+  generate_heatmap_data <- function(subgroups) {
+    ident.1 <- paste0(subgroups[1], "_", celltype)
+    ident.2 <- paste0(subgroups[3], "_", celltype)
+
+    rna_mks <- FindMarkers(dt, ident.1 = ident.1, ident.2 = ident.2, verbose = FALSE, assay = 'RNA')
+    adt_mks <- FindMarkers(dt, ident.1 = ident.1, ident.2 = ident.2, verbose = FALSE, assay = 'CITE')
+
+    celltype_order <- paste0(subgroups, "_", celltype)
+
+    top_rna_genes <- rna_mks %>%
+      filter(p_val_adj <= 0.05) %>%
+      arrange(desc(abs(avg_log2FC))) %>%
+      filter(!grepl("^ENSG", rownames(.))) %>%
+      slice_head(n = 10) %>%
+      rownames()
+
+    top_adt_genes <- adt_mks %>%
+      filter(p_val_adj <= 0.05) %>%
+      arrange(desc(abs(avg_log2FC))) %>%
+      filter(!grepl("^ENSG", rownames(.))) %>%
+      slice_head(n = 10) %>%
+      rownames()
+
+    cite_data <- GetAssayData(dt, layer = 'data', assay = 'CITE')[top_adt_genes, ] %>% t()
+    rna_subset <- GetAssayData(dt, assay = 'RNA', layer = 'data')[top_rna_genes, ] %>%
+      as.data.frame() %>%
+      t() %>%
+      as.matrix()
+
+    d <- cbind(dt@meta.data, cite_data, rna_subset)
+
+    dat_plot <- d %>%
+      filter(subgroup_2_celltype.l1 %in% celltype_order) %>%
+      dplyr::group_by(subgroup_2_celltype.l1) %>%
+      dplyr::summarize_at(.vars = c(top_adt_genes, top_rna_genes), .funs = mean) %>%
+      tibble::remove_rownames() %>%
+      tibble::column_to_rownames("subgroup_2_celltype.l1")
+
+    num_colors <- 100
+    adt_palette <- create_custom_palette(unlist(dat_plot[, 1:10]), num_colors)
+    prot_col <- colorRamp2(breaks = adt_palette$breaks, colors = adt_palette$palette)
+
+    rna_palette <- create_custom_palette(unlist(dat_plot[, 11:20]), num_colors)
+    rna_col <- colorRamp2(breaks = rna_palette$breaks, colors = rna_palette$palette)
+
+    list(
+      adt_data = t(dat_plot)[top_adt_genes, ],
+      rna_data = t(scale(t(dat_plot)[top_rna_genes, ])),
+      adt_col = prot_col,
+      rna_col = rna_col,
+      top_adt_genes = top_adt_genes,
+      top_rna_genes = top_rna_genes,
+      celltype_order = celltype_order
+    )
+  }
+
+  # Generate heatmaps data for both sets
+  data1 <- generate_heatmap_data(subgroups1)
+  data2 <- generate_heatmap_data(subgroups2)
+
+  # Create protein heatmaps
+  p1 <- Heatmap(data1$adt_data,
+                name = "protein",
+                col = data1$adt_col,
+                row_names_gp = gpar(color = "black", fontsize = 5),
+                rect_gp = gpar(col = "white", lwd = 1.5),
+                row_order = data1$top_adt_genes,
+                column_order = data1$celltype_order,
+                heatmap_legend_param = list(
+                  title = "Protein",
+                  title_gp = gpar(fontsize = 6),
+                  labels_gp = gpar(fontsize = 6)
+                ))
+
+  p3 <- Heatmap(data2$adt_data,
+                name = "protein",
+                col = data2$adt_col,
+                row_names_gp = gpar(color = "black", fontsize = 5),
+                rect_gp = gpar(col = "white", lwd = 1.5),
+                row_order = data2$top_adt_genes,
+                column_order = data2$celltype_order,
+                heatmap_legend_param = list(
+                  title = "Protein",
+                  title_gp = gpar(fontsize = 6),
+                  labels_gp = gpar(fontsize = 6)
+                ))
+
+  # Create mRNA heatmaps
+  p2 <- Heatmap(data1$rna_data,
+                name = "mRNA",
+                col = data1$rna_col,
+                clustering_method_columns = 'average',
+                column_names_gp = gpar(color = "black", fontsize = 5),
+                row_names_gp = gpar(color = "black", fontsize = 5),
+                rect_gp = gpar(col = "white", lwd = 1.5),
+                row_order = data1$top_rna_genes,
+                column_order = data1$celltype_order,
+                heatmap_legend_param = list(
+                  title = "mRNA",
+                  title_gp = gpar(fontsize = 6),
+                  labels_gp = gpar(fontsize = 6)
+                ))
+
+  p4 <- Heatmap(data2$rna_data,
+                name = "mRNA",
+                col = data2$rna_col,
+                clustering_method_columns = 'average',
+                column_names_gp = gpar(color = "black", fontsize = 5),
+                row_names_gp = gpar(color = "black", fontsize = 5),
+                rect_gp = gpar(col = "white", lwd = 1.5),
+                row_order = data2$top_rna_genes,
+                column_order = data2$celltype_order,
+                heatmap_legend_param = list(
+                  title = "mRNA",
+                  title_gp = gpar(fontsize = 6),
+                  labels_gp = gpar(fontsize = 6)
+                ))
+
+  # Combine heatmaps with shared legends
+  ht_list <- (p1 %v% p2) %v% (p3 %v% p4)
+
+  # Export combined heatmap as PNG
+  png(output_filename, width = 1200, height = 1100, unit = "px", res = 300)
+  draw(ht_list, merge_legend = TRUE)
+  dev.off()
+
+
+create_combined_heatmaps(
+  subgroups1 = c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2"),
+  subgroups2 = c("dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint"),
+  celltype = "CD4+ T",
+  output_filename = "figures/03-8_DEG_same_scale_CD4.png"
+)

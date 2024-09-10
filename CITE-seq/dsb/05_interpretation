@@ -1,0 +1,24 @@
+# dsb derived cluster interpretation ---------------------------------------
+library(magrittr)
+# calculate the median protein expression separately for each cluster 
+adt_plot = d %>% 
+  dplyr::group_by(CITE_snn_res.1) %>% 
+  dplyr::summarize_at(.vars = prots, .funs = median) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("CITE_snn_res.1") 
+# plot a heatmap of the average dsb normalized values for each cluster
+pl <- pheatmap::pheatmap(t(adt_plot), 
+                   color = viridis::viridis(25, option = "B"), 
+                   fontsize_row = 8, border_color = NA)
+ggsave(paste('figures/05_',pool,'_pheatmap.png',sep=''),plot=pl,width=6, height=6, scale=2)
+
+
+# test celltyping ##########################
+# The RunAzimuth function can take a Seurat object as input
+# DefaultAssay(dt) <- 'RNA'
+s <- RunAzimuth(s, reference = "pbmcref")
+dp <- DimPlot(s, group.by = "predicted.celltype.l2", label = TRUE, repel=TRUE, label.size = 3, reduction='umap') + NoLegend()
+ggsave('figures/azimuth.png',plot=dp,width=6, height=6, scale=2)
+############################################
+
+

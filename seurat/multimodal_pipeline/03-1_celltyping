@@ -1,0 +1,109 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : celltyping l1
+# author      : songnsnow
+# date        : 240702
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load packages
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+
+# load data
+dt <- readRDS('rds/02-4_3.rds')
+
+# get top 50 markers ========================================================================
+dt_mks <- FindAllMarkers(dt, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+mks_tbl <- dt_mks %>%
+    group_by(cluster) %>%
+    slice_max(n = 50, order_by = avg_log2FC)
+write.csv(mks_tbl,paste('03-1_top50_markers.csv',sep=''))
+# ===========================================================================================
+
+
+# markers plot ===============================================================================
+rna_general <- c('CD2','CD3D','CD3E','CD4','CD8A','CD8B','NKG7','GNLY','KLRD1','FGFBP2','TRDV2','FOXP3','SLC4A10','ZBTB16','CD14','CD68','LYZ','AIF1','C1QA','C1QB','C1QC','CLEC9A','CD1C','FCER1A','CLEC10A','CLEC4C','IRF7','IRF8','LILRA4','CD79A','CD19','MS4A1','MZB1','JCHAIN','STMN1','MKI67','PPBP')
+adt_general <- c('Hu.CD3-UCHT1','Hu.CD4-RPA.T4','Hu.CD8','Hu.CD161','Hu.CD158e1','Hu.CD1c','Hu.CD303','Hu.CD183','Hu.CD20-2H7')
+# rna ----------------------
+# signature genes dotplot
+DefaultAssay(dt) <- 'RNA'
+Idents(dt) <- 'seurat_clusters'
+mks <- rna_general
+dp <- DotPlot(object = dt, features = mks, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip() + theme_classic()
+ggsave('figures/03-1_dp_general_rna_mks.jpg',plot=dp,width=7, height=4, scale=2)
+# ggsave('figures/03-1-2_dp_general_rna_mks.jpg',plot=dp,width=7, height=4, scale=2)
+
+# together ------------------
+DefaultAssay(dt) <- 'CITE'
+Idents(dt) <- 'seurat_clusters'
+adt_markers <- c("Hu.CD3-UCHT1", "Hu.CD4-RPA.T4", "Hu.CD8", "Hu.CD16", "Hu.CD56", "Hu.CD14-M5E2", "Hu.CD20-2H7", "Hu.CD1c")
+# Hu.CD183
+rna_markers <- c("CD3D", "CD4", "CD8A", "FCGR3A", "NCAM1", "CD14", "MS4A1", "CD1C")
+fts <- c(adt_markers,rna_markers)
+FeaturePlot(dt, features = fts, reduction = "wnn.umap", min.cutoff = "q05", max.cutoff = "q95", ncol = 8)
+ggsave('figures/03-1_fp_multimodal_markers.png',width=20, height=5,scale=1.5)
+# ==============================================================================================
+
+
+
+
+# assign cell types (level 1) ==================================================================
+id <- c('CD4+ T',
+    'CD8+ T','CD4+ T','CD14 Mono','NK','NK','NK','CD14 Mono','CD8+ T','CD14 Mono','CD14 Mono',
+    'CD4+ T','CD16 Mono','B','B','NK','CD8+ T','CD8+ T','B','CD8+ T','CD4+ T',
+    'gdT','MAIT','Treg','CD14 Mono','NKT','cDC','CD8+ T','Plasma','B','B',
+    'CD14 Mono','pDC')
+
+lbd <- dt
+names(id) <- levels(lbd)
+dt <- RenameIdents(lbd, id)
+dt$celltype.l1 <- dt@active.ident
+
+# plotting
+DimPlot(dt, reduction = "wnn.umap", group.by='celltype.l1', label=TRUE, repel=TRUE) + NoLegend()
+ggsave('figures/03-1_celltyped.png',width=5, height=5,scale=1.5)
+# ===============================================================================================
+
+
+# add metadata ================================
+dt@meta.data$subgroup_celltype.l1 <- paste(dt@meta.data$subgroup, dt@meta.data$celltype.l1, sep = "_")
+dt@meta.data$subgroup_2_celltype.l1 <- paste(dt@meta.data$subgroup_2, dt@meta.data$celltype.l1, sep = "_")
+
+# save file
+DefaultAssay(dt) <- 'RNA'
+saveRDS(dt, 'rds/03-1.rds')
+
+# correct labels 240830
+dt <- readRDS('rds/03-1.rds')
+new <- readRDS('rds/01-3.rds')
+dt$subgroup <- new$subgroup
+dt$subgroup_2 <- new$subgroup_2
+dt$timepoint <- new$timepoint
+
+table(dt$subgroup,dt$subgroup_2)    #check
+saveRDS(dt, 'rds/03-1.rds')
+#==============================================
+
+# subset cell types =============================================================================
+Idents(dt) <- 'seurat_clusters'
+B_cell <- subset(dt, idents = c("13","14","18","28","29","30"))
+T_cell <- subset(dt, idents=c("0","1","2","8","11","16","17","19","20","21","22","23","25","27"))
+# NK_cell <- subset(dt, idents="NK")
+# Mono_cell <- subset(dt, idents = c("CD16 Mono","CD14 Mono"))
+# DC_cell <- subset(dt, idents = c("cDC","pDC"))
+
+T_NK_cell <- subset(dt, idents = c("0","1","2","8","11","16","17","19","20","21","22","23","25","27",  "4","5","6","15"))
+Mono_DC_cell <- subset(dt, idents= c("3","7","9","10","12","24","31",  "26","32"))
+
+saveRDS(B_cell,'rds/03-1.B_cell.rds')
+saveRDS(T_cell,'rds/03-1.T_cell.rds')
+# saveRDS(NK_cell,'rds/03-1.NK_cell.rds')
+# saveRDS(Mono_cell,'rds/03-1.Mono_cell.rds')
+# saveRDS(DC_cell,'rds/03-1.DC_cell.rds')
+
+saveRDS(T_NK_cell,'rds/03-1.T_NK_cell.rds')
+saveRDS(Mono_DC_cell,'rds/03-1.Mono_DC_cell.rds')
+# ===============================================================================================

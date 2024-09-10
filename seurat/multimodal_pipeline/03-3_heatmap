@@ -1,0 +1,379 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : plotting
+# author      : songnsnow
+# date        : 240702
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load packages
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(ComplexHeatmap) # for heatmap
+library(colorspace) # for heatmap color palette
+library(RColorBrewer)
+library(magrittr)
+
+
+# load data
+dt <- readRDS('rds/03-1.rds')
+table(dt$subgroup,dt$subgroup_2)
+
+# Access the metadata of the Seurat object
+metadata <- dt@meta.data
+# Create a new column 'subgroup_2' by combining 'subgroup' and 'timepoint'
+metadata$subgroup_celltype.l1 <- paste(metadata$subgroup, metadata$celltype.l1, sep = "_")
+metadata$subgroup_2_celltype.l1 <- paste(metadata$subgroup_2, metadata$celltype.l1, sep = "_")
+# Update the Seurat object with the modified metadata
+dt@meta.data <- metadata
+# saveRDS(dt, 'rds/03-1.rds')
+
+
+
+## by selected markers ################################################################################################
+# markers heatmap =============================================================================
+# Row/col order
+rna_mks <- c('CD3E','CD4','FOXP3','CD8A','CD8B','SLC4A10','ZBTB16','TRDV2','NKG7','GNLY','LYZ','CD14','CD68','C1QA','C1QB','CLEC9A','CD1C','CLEC4C','IRF7','CD19','MS4A1','JCHAIN')
+adt_mks <- c("Hu.CD3-UCHT1", "Hu.CD4-RPA.T4", "Hu.CD8", "Hu.CD56", "Hu.CD14-M5E2", "Hu.CD16", "Hu.CD1c","Hu.CD303", "Hu.CD20-2H7")
+celltype_order <- c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma')
+
+# Data processing --------------------------------
+vf = VariableFeatures(dt,assay = "RNA")
+Idents(dt) = "celltype.l1"
+DefaultAssay(dt)  = "RNA"
+
+cite_data = GetAssayData(dt,layer = 'data',assay = 'CITE')[adt_mks, ] %>% t()
+rna_subset = GetAssayData(dt,assay = 'RNA',layer = 'data')[rna_mks, ] %>%
+  as.data.frame() %>% 
+  t() %>% 
+  as.matrix()
+d = cbind(dt@meta.data, cite_data, rna_subset) # combine into dataframe 
+
+# calculate the average expression per cluster
+dat_plot = d %>% 
+  dplyr::group_by(celltype.l1) %>% 
+  dplyr::summarize_at(.vars = c(adt_mks, rna_mks), .funs = mean) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("celltype.l1") 
+
+suppressMessages(library(ComplexHeatmap)); ht_opt$message = FALSE
+
+
+# Protein heatmap --------------------------------
+# Create a color palette using RColorBrewer
+custom_palette <- rev(colorRampPalette(brewer.pal(6, "RdBu"))(256))
+calm_palette <- desaturate(custom_palette, amount = 0.4) # Reduce saturation
+calm_palette <- lighten(calm_palette, amount = 0.1)     # Slightly lighten the colors
+prot_col <- circlize::colorRamp2(breaks = c(0, 1, 2, 3, 4, 5), colors = calm_palette[c(1, 51, 102, 153, 204, 256)])
+
+p1 = Heatmap(t(dat_plot)[adt_mks, ], 
+             name = "protein", 
+             col = prot_col, 
+            #  use_raster = T,
+            #  raster_quality = 10,
+             row_names_gp = gpar(color = "black", fontsize = 5),
+             rect_gp = gpar(col = "white", lwd = 3),
+             row_order = adt_mks,
+             column_order = celltype_order
+             )
+# --------------------------------------------------
+
+# mRNA heatmap -----------------------------------
+mrna = t(dat_plot)[rna_mks, ]
+
+## Create a color palette using RColorBrewer
+custom_palette <- rev(colorRampPalette(brewer.pal(6, "RdBu"))(256))
+calm_palette <- desaturate(custom_palette, amount = 0.4) # Reduce saturation
+calm_palette <- lighten(calm_palette, amount = 0.1)     # Slightly lighten the colors
+rna_col <- circlize::colorRamp2(breaks = c(-2, -1, 0, 1, 2), colors = calm_palette[c(1, 64, 128, 192, 256)])
+
+p2 = Heatmap(t(scale(t(mrna))), 
+             name = "mRNA", 
+             col = rna_col,
+            #  use_raster = T,
+            #  raster_quality = 10,
+             clustering_method_columns = 'average',
+             column_names_gp = gpar(color = "black", fontsize = 7), 
+             row_names_gp = gpar(color = "black", fontsize = 5),
+             rect_gp = gpar(col = "white", lwd = 3),
+             row_order = rna_mks,
+             column_order = celltype_order
+             )
+# --------------------------------------------------
+
+ht_list = p1 %v% p2 # Combine heatmaps
+png('figures/03-3_markers_heatmap.png',width=1500, height=2300, unit="px", res=300) # Export heatmap
+ht_list
+dev.off()
+# ==============================================================================================
+##########################################################################################################################
+
+
+
+
+
+
+
+## Selected from all markers #######################################################################################
+markers <- 
+
+
+s <- dt
+vf = VariableFeatures(s,assay = "RNA")
+Idents(s) = "celltype.l1"
+DefaultAssay(s)  = "RNA"
+
+# get top markers ==========================================================
+rnade = FindAllMarkers(s, features = vf, only.pos = TRUE, verbose = FALSE)
+gene_plot = rnade %>% 
+  dplyr::filter(avg_log2FC > 1 ) %>%  
+  dplyr::group_by(cluster) %>% 
+  dplyr::top_n(10) %$% gene %>% unique 
+
+cite_data = GetAssayData(s,layer = 'data',assay = 'CITE') %>% t()
+rna_subset = GetAssayData(s,assay = 'RNA',layer = 'data')[gene_plot, ] %>%
+  as.data.frame() %>% 
+  t() %>% 
+  as.matrix()
+
+# combine into dataframe 
+d = cbind(s@meta.data, cite_data, rna_subset) 
+
+# row/col order
+celltype_order <- c('uCN_CD4+ T','uCN_Treg','uCN_CD8+ T','uCN_MAIT','uCN_gdT','uCN_NKT','uCN_NK','uCN_CD14 Mono','uCN_CD16 Mono','uCN_cDC','uCN_pDC','uCN_B','uCN_Plasma',
+                    'dCN_CD4+ T','dCN_Treg','dCN_CD8+ T','dCN_MAIT','dCN_gdT','dCN_NKT','dCN_NK','dCN_CD14 Mono','dCN_CD16 Mono','dCN_cDC','dCN_pDC','dCN_B','dCN_Plasma')
+
+prots <- c(
+  "Hu.CD101", "Hu.CD103", "Hu.CD105_43A3", "Hu.CD107a", "Hu.CD112", 
+  "Hu.CD119", "Hu.CD11a", "Hu.CD11b", "Hu.CD11c", "Hu.CD122", 
+  "Hu.CD123", "Hu.CD124", "Hu.CD127", "Hu.CD13", "Hu.CD134", 
+  "Hu.CD137", "Hu.CD141", "Hu.CD146", "Hu.CD14_M5E2", "Hu.CD152", 
+  "Hu.CD154", "Hu.CD155", "Hu.CD158", "Hu.CD158b", "Hu.CD158e1", 
+  "Hu.CD16", "Hu.CD161", "Hu.CD163", "Hu.CD169", "Hu.CD18", 
+  "Hu.CD183", "Hu.CD185", "Hu.CD19", "Hu.CD194", "Hu.CD195", 
+  "Hu.CD196", "Hu.CD1c", "Hu.CD1d", "Hu.CD2", "Hu.CD20_2H7", 
+  "Hu.CD21", "Hu.CD22", "Hu.CD223", "Hu.CD224", "Hu.CD226_11A8", 
+  "Hu.CD23", "Hu.CD24", "Hu.CD244", "Hu.CD25", "Hu.CD26", 
+  "Hu.CD267", "Hu.CD268", "Hu.CD27", "Hu.CD270", "Hu.CD272", 
+  "Hu.CD274", "Hu.CD279", "Hu.CD28", "Hu.CD29", "Hu.CD303", 
+  "Hu.CD31", "Hu.CD314", "Hu.CD319", "Hu.CD32", "Hu.CD328", 
+  "Hu.CD33", "Hu.CD335", "Hu.CD35", "Hu.CD352", "Hu.CD36", 
+  "Hu.CD38_HIT2", "Hu.CD39", "Hu.CD3_UCHT1", "Hu.CD40", "Hu.CD41", 
+  "Hu.CD42b", "Hu.CD45RA", "Hu.CD45RO", "Hu.CD45_HI30", "Hu.CD47", 
+  "Hu.CD48", "Hu.CD49a", "Hu.CD49b", "Hu.CD49d", "Hu.CD4_RPA.T4", 
+  "Hu.CD5", "Hu.CD52", "Hu.CD54", "Hu.CD56", "Hu.CD57", 
+  "Hu.CD58", "Hu.CD62L", "Hu.CD62P", "Hu.CD64", "Hu.CD69", 
+  "Hu.CD7", "Hu.CD71", "Hu.CD73", "Hu.CD79b", "Hu.CD8", 
+  "Hu.CD81", "Hu.CD82", "Hu.CD83", "Hu.CD85j", "Hu.CD86", 
+  "Hu.CD88", "Hu.CD94", "Hu.CD95", "Hu.CD99", "Hu.CLEC12A", 
+  "Hu.CX3CR1", "Hu.FceRIa", "Hu.GPR56", "Hu.HLA.ABC", "Hu.HLA.DR", 
+  "Hu.HLA.E", "Hu.Ig.LightChain.k", "Hu.Ig.LightChain.l", "Hu.IgD", 
+  "Hu.IgM", "Hu.KLRG1", "Hu.LOX.1", "Hu.TCR.AB", "Hu.TCR.Va7.2", 
+  "Hu.TCR.Vd2", "Hu.TIGIT", "HuMs.CD44", "HuMs.CD49f", "HuMs.integrin.b7"
+)
+
+suppressMessages(library(ComplexHeatmap)); ht_opt$message = FALSE
+
+
+# plotting =================================================================
+# calculate the average expression per cluster
+dat_plot = d %>% 
+  dplyr::group_by(celltype.l1) %>% 
+  dplyr::summarize_at(.vars = c(prots, gene_plot), .funs = mean) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("celltype.l1") 
+
+adt_plot = d %>% 
+  dplyr::group_by(celltype.l1) %>% 
+  dplyr::summarize_at(.vars = c(prots), .funs = median) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("celltype.l1") 
+
+rna_plot = d %>% 
+  dplyr::group_by(celltype.l1) %>% 
+  dplyr::summarize_at(.vars = c(gene_plot), .funs = mean) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("celltype.l1") 
+
+
+
+# protein heatmap --------------------------------------------------------------
+# Create a color palette using RColorBrewer
+custom_palette <- rev(colorRampPalette(brewer.pal(6, "RdBu"))(256))
+calm_palette <- desaturate(custom_palette, amount = 0.4) # Reduce saturation
+calm_palette <- lighten(calm_palette, amount = 0.1)     # Slightly lighten the colors
+prot_col <- circlize::colorRamp2(breaks = c(0, 1, 2, 3, 4, 5), colors = calm_palette[c(1, 51, 102, 153, 204, 256)])
+
+# Perform hierarchical clustering on rows
+adt = t(dat_plot)[prots, ]
+row_dend = hclust(dist(t(scale(t(adt)))), method = 'average')
+
+p1 = Heatmap(t(dat_plot)[prots, ], 
+             name = "protein", 
+             col = prot_col, 
+            #  use_raster = T,
+            #  raster_quality = 10,
+             row_names_gp = gpar(color = "black", fontsize = 5),
+             rect_gp = gpar(col = "white", lwd = 1),
+             row_order = prots,
+             column_order = celltype_order,
+             cluster_rows = as.dendrogram(row_dend)  # Use the hierarchical clustering result for row ordering
+             )
+
+# mRNA heatmap -----------------------------------------------------------------
+mrna = t(dat_plot)[gene_plot, ]
+
+# Create a color palette using RColorBrewer
+custom_palette <- rev(colorRampPalette(brewer.pal(6, "RdBu"))(256))
+calm_palette <- desaturate(custom_palette, amount = 0.4) # Reduce saturation
+calm_palette <- lighten(calm_palette, amount = 0.1)     # Slightly lighten the colors
+rna_col <- circlize::colorRamp2(breaks = c(-2, -1, 0, 1, 2), colors = calm_palette[c(1, 64, 128, 192, 256)])
+
+# Perform hierarchical clustering on rows
+row_dend = hclust(dist(t(scale(t(mrna)))), method = 'average')
+
+p2 = Heatmap(t(scale(t(mrna))), 
+             name = "mRNA", 
+             col = rna_col,
+            #  use_raster = T,
+            #  raster_quality = 10,
+             clustering_method_columns = 'average',
+             column_names_gp = gpar(color = "black", fontsize = 7), 
+             row_names_gp = gpar(color = "black", fontsize = 5),
+             rect_gp = gpar(col = "white", lwd = 1),
+             row_order = gene_plot,
+             column_order = celltype_order,
+             cluster_rows = as.dendrogram(row_dend)  # Use the hierarchical clustering result for row ordering
+             )
+
+# combine heatmaps --------------------------------------------------------------------
+ht_list = p1 %v% p2
+
+png('figures/01-3_markers_heatmap.png',width=1500, height=4000, unit="px", res=300)
+ht_list
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+## All markers ###########################################################################################################
+s <- dt
+vf = VariableFeatures(s,assay = "RNA")
+Idents(s) = "subgroup_celltype.l1"
+DefaultAssay(s)  = "RNA"
+
+# get top markers ==========================================================
+rnade = FindAllMarkers(s, features = vf, only.pos = TRUE, verbose = FALSE)
+gene_plot = rnade %>% 
+  dplyr::filter(avg_log2FC > 1 ) %>%  
+  dplyr::group_by(cluster) %>% 
+  dplyr::top_n(10) %$% gene %>% unique 
+
+cite_data = GetAssayData(s,layer = 'data',assay = 'CITE') %>% t()
+rna_subset = GetAssayData(s,assay = 'RNA',layer = 'data')[gene_plot, ] %>%
+  as.data.frame() %>% 
+  t() %>% 
+  as.matrix()
+
+# combine into dataframe 
+d = cbind(s@meta.data, cite_data, rna_subset) 
+
+# row/col order
+celltype_order <- c('CD4+ T','Treg','CD8+ T','MAIT','gdT','NKT','NK','CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma')
+prots = rownames(s@assays$CITE)[1:130]
+
+suppressMessages(library(ComplexHeatmap)); ht_opt$message = FALSE
+
+
+# plotting =================================================================
+# calculate the average expression per cluster
+dat_plot = d %>% 
+  dplyr::group_by(celltype.l1) %>% 
+  dplyr::summarize_at(.vars = c(prots, gene_plot), .funs = mean) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("celltype.l1") 
+
+adt_plot = d %>% 
+  dplyr::group_by(celltype.l1) %>% 
+  dplyr::summarize_at(.vars = c(prots), .funs = median) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("celltype.l1") 
+
+rna_plot = d %>% 
+  dplyr::group_by(celltype.l1) %>% 
+  dplyr::summarize_at(.vars = c(gene_plot), .funs = mean) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("celltype.l1") 
+
+
+
+# protein heatmap --------------------------------------------------------------
+# Create a color palette using RColorBrewer
+custom_palette <- rev(colorRampPalette(brewer.pal(6, "RdBu"))(256))
+calm_palette <- desaturate(custom_palette, amount = 0.4) # Reduce saturation
+calm_palette <- lighten(calm_palette, amount = 0.1)     # Slightly lighten the colors
+prot_col <- circlize::colorRamp2(breaks = c(0, 1, 2, 3, 4, 5), colors = calm_palette[c(1, 51, 102, 153, 204, 256)])
+
+# Perform hierarchical clustering on rows
+adt = t(dat_plot)[prots, ]
+row_dend = hclust(dist(t(scale(t(adt)))), method = 'average')
+
+p1 = Heatmap(t(dat_plot)[prots, ], 
+             name = "protein", 
+             col = prot_col, 
+            #  use_raster = T,
+            #  raster_quality = 10,
+             row_names_gp = gpar(color = "black", fontsize = 5),
+             rect_gp = gpar(col = "white", lwd = 1),
+             row_order = prots,
+             column_order = celltype_order,
+             cluster_rows = as.dendrogram(row_dend)  # Use the hierarchical clustering result for row ordering
+             )
+
+# mRNA heatmap -----------------------------------------------------------------
+mrna = t(dat_plot)[gene_plot, ]
+
+# Create a color palette using RColorBrewer
+custom_palette <- rev(colorRampPalette(brewer.pal(6, "RdBu"))(256))
+calm_palette <- desaturate(custom_palette, amount = 0.4) # Reduce saturation
+calm_palette <- lighten(calm_palette, amount = 0.1)     # Slightly lighten the colors
+rna_col <- circlize::colorRamp2(breaks = c(-2, -1, 0, 1, 2), colors = calm_palette[c(1, 64, 128, 192, 256)])
+
+# Perform hierarchical clustering on rows
+row_dend = hclust(dist(t(scale(t(mrna)))), method = 'average')
+
+p2 = Heatmap(t(scale(t(mrna))), 
+             name = "mRNA", 
+             col = rna_col,
+            #  use_raster = T,
+            #  raster_quality = 10,
+             clustering_method_columns = 'average',
+             column_names_gp = gpar(color = "black", fontsize = 7), 
+             row_names_gp = gpar(color = "black", fontsize = 5),
+             rect_gp = gpar(col = "white", lwd = 1),
+             row_order = gene_plot,
+             column_order = celltype_order,
+             cluster_rows = as.dendrogram(row_dend)  # Use the hierarchical clustering result for row ordering
+             )
+
+# combine heatmaps --------------------------------------------------------------------
+ht_list = p1 %v% p2
+
+png('figures/03-3_all_markers_heatmap.png',width=1500, height=4000, unit="px", res=300)
+ht_list
+dev.off()
+
+
+

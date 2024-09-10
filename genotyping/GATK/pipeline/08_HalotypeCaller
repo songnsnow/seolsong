@@ -1,0 +1,55 @@
+gatk --java-options "-Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
+    HaplotypeCaller \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/CKS/07BQSR.bam \
+    -L /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/wgs_calling_regions.hg38.interval_list \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/CKS/08HapCall.g.vcf.gz \
+    -dont-use-soft-clipped-bases \
+    -stand-call-conf 20 \
+    -D /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -ERC GVCF
+
+
+gatk --java-options "-Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
+    HaplotypeCaller \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/KKH/07BQSR.bam \
+    -L /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/wgs_calling_regions.hg38.interval_list \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/KKH/08HapCall.g.vcf.gz \
+    -dont-use-soft-clipped-bases \
+    -stand-call-conf 20 \
+    -D /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -ERC GVCF
+
+gatk --java-options "-Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
+    HaplotypeCaller \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/PJY/07BQSR.bam \
+    -L /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/wgs_calling_regions.hg38.interval_list \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/PJY/08HapCall.g.vcf.gz \
+    -dont-use-soft-clipped-bases \
+    -stand-call-conf 20 \
+    -D /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -ERC GVCF
+
+gatk --java-options "-Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
+    HaplotypeCaller \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/PSY/07BQSR.bam \
+    -L /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/wgs_calling_regions.hg38.interval_list \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/PSY/08HapCall.g.vcf.gz \
+    -dont-use-soft-clipped-bases \
+    -stand-call-conf 20 \
+    -D /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -ERC GVCF
+
+gatk --java-options "-Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
+    HaplotypeCaller \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/YKH/07BQSR.bam \
+    -L /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/wgs_calling_regions.hg38.interval_list \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/YKH/08HapCall.g.vcf.gz \
+    -dont-use-soft-clipped-bases \
+    -stand-call-conf 20 \
+    -D /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -ERC GVCF

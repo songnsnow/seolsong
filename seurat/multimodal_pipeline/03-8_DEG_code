@@ -1,0 +1,52 @@
+#### line plot modified to normalize to 100 for top 5 ###################################
+# Subset data for uCN subgroups
+subset_data <- dt@meta.data %>%
+  filter(subgroup_2 %in% c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2")) %>%
+  group_by(subgroup_2, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Subset data for dCN subgroups
+subset_data <- dt@meta.data %>%
+  filter(subgroup_2 %in% c("dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint")) %>%
+  group_by(subgroup_2, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Calculate proportions within each subgroup
+subset_data <- subset_data %>%
+  group_by(subgroup_2) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
+
+# Calculate top 5 celltype.l2 categories by total proportion
+top_5 <- subset_data %>%
+  group_by(celltype.l2) %>%
+  summarise(total_proportion = sum(proportion)) %>%
+  arrange(desc(total_proportion)) %>%
+  top_n(5, wt = total_proportion) %>%
+  pull(celltype.l2)
+
+# Filter subset_data for top 5 categories
+plot_data <- subset_data %>%
+  filter(celltype.l2 %in% top_5) %>%
+  arrange(celltype.l2, subgroup_2)
+
+# Create line plot
+ggplot(plot_data, aes(x = subgroup_2, y = proportion, color = celltype.l2, group = celltype.l2)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  scale_color_viridis_d() +  # Use viridis color scale
+  theme_minimal() +
+  labs(title = "Top 5 Cell Types",
+       x = "Subgroup",
+       y = "Proportion",  # Update the y-axis label
+       color = "Cell Type") +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),  # Bold the title and center-align it
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Save the plot
+ggsave("figures/04-5_line_uCN.png", width = 5, height = 4, bg = 'white')
+ggsave("figures/04-5_line_dCN.png", width = 5, height = 4, bg = 'white')

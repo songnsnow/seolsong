@@ -1,0 +1,417 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : plotting
+# author      : songnsnow
+# date        : 240724
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load necessary libraries
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+# install.packages("ggalluvial")
+library(ggalluvial)
+
+# Load data
+dt <- readRDS('rds/04-2.rds')
+save <- dt
+Idents(dt) <- 'celltype.l2'
+dt <- subset(dt, ident=c('CD16bright NK', 'CD16dim NK'), invert=TRUE)
+
+
+
+######################################################################
+
+# Subset data for RCC_A1 to RCC_A2
+subset_data <- dt@meta.data %>%
+  filter(id %in% c("RCC_A1", "RCC_A2")) %>%
+  group_by(id, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Calculate proportions within each id
+subset_data <- subset_data %>%
+  group_by(id) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
+
+# Get top 10 proportions across RCC_A1 and RCC_A2
+top_10 <- subset_data %>%
+  group_by(celltype.l2) %>%
+  summarise(total_proportion = sum(proportion)) %>%
+  arrange(desc(total_proportion)) %>%
+  top_n(10, total_proportion) %>%
+  pull(celltype.l2)
+
+# Filter data for top 10 celltype.l2 categories
+subset_data <- subset_data %>%
+  filter(celltype.l2 %in% top_10)
+
+# Arrange data for alluvial plot
+plot_data <- subset_data %>%
+  mutate(id = factor(id, levels = c("RCC_A1", "RCC_A2"))) %>%
+  arrange(id, desc(proportion)) %>%
+  group_by(id) %>%
+  mutate(rank = row_number()) %>%
+  ungroup()
+
+# Create an alluvial plot
+ggplot(plot_data, aes(axis1 = id, axis2 = celltype.l2, y = proportion)) +
+  geom_alluvium(aes(fill = celltype.l2)) +
+  geom_stratum() +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("RCC_A1", "RCC_A2")) +
+  scale_fill_viridis_d(option = "D") +
+  theme_minimal() +
+  labs(title = "Top 10 Proportions of celltype.l2 from RCC_A1 to RCC_A2",
+       fill = "Cell Type",
+       x = "ID",
+       y = "Proportion") +
+  theme(axis.text.y = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+ggsave("figures/04-5_id_A.png", width = 8, height = 10, bg='white')
+
+
+
+
+
+
+
+
+
+# --------------- area --------------------------------------------
+# Load necessary libraries
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+
+# Subset data for RCC_A1 to RCC_A2
+subset_data <- dt@meta.data %>%
+  filter(id %in% c("RCC_A1", "RCC_A2")) %>%
+  group_by(id, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Calculate proportions within each id
+subset_data <- subset_data %>%
+  group_by(id) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
+
+# Calculate top 5 celltype.l2 categories by proportion
+top_5 <- subset_data %>%
+  group_by(celltype.l2) %>%
+  summarise(total_proportion = sum(proportion)) %>%
+  arrange(desc(total_proportion)) %>%
+  top_n(5) %>%
+  arrange(desc(total_proportion)) %>%
+  pull(celltype.l2)
+
+# Filter subset_data for top 5 categories
+plot_data <- subset_data %>%
+  filter(celltype.l2 %in% top_5) %>%
+  arrange(celltype.l2, id)
+
+# Create stacked area plot
+ggplot(plot_data, aes(x = id, y = proportion, fill = celltype.l2, group = celltype.l2)) +
+  geom_area(position = "stack", stat = "identity") +
+  scale_fill_viridis_d() +  # Use viridis color scale
+  theme_minimal() +
+  labs(title = "Comparison of Top 5 Cell Type Proportions between RCC_A1 and RCC_A2",
+       x = "ID",
+       y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+  ggsave("figures/04-5_area_id_A.png", width = 8, height = 10, bg='white')
+ 
+
+#################### by subgroup2
+# Subset data for uCN
+subset_data <- dt@meta.data %>%
+  filter(subgroup_2 %in% c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2")) %>%
+  group_by(subgroup_2, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Calculate proportions within each id
+subset_data <- subset_data %>%
+  group_by(subgroup_2) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
+
+# Filter subset_data for top 5 categories
+plot_data <- subset_data %>%
+  filter(celltype.l2 %in% top_5) %>%
+  arrange(celltype.l2, subgroup_2)
+
+# Create stacked area plot
+ggplot(plot_data, aes(x = subgroup_2, y = proportion, fill = celltype.l2, group = celltype.l2)) +
+  geom_area(position = "stack", stat = "identity") +
+  scale_fill_viridis_d() +  # Use viridis color scale
+  theme_minimal() +
+  labs(title = "Comparison of Top 5 Cell Type Proportions between RCC_A1 and RCC_A2",
+       x = "Subgroup",
+       y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+ggsave("figures/04-5_area_uCN.png", width = 4, height = 6, bg='white')
+
+
+
+#### area plot modified to normalize to 100 ###################################
+# Subset data for uCN subgroups
+subset_data <- dt@meta.data %>%
+  filter(subgroup_2 %in% c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2")) %>%
+  group_by(subgroup_2, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# # Subset data for dCN subgroups
+# subset_data <- dt@meta.data %>%
+#   filter(subgroup_2 %in% c("dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint")) %>%
+#   group_by(subgroup_2, celltype.l2) %>%
+#   summarise(count = n()) %>%
+#   ungroup()
+
+# Calculate proportions within each subgroup
+subset_data <- subset_data %>%
+  group_by(subgroup_2) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
+
+# Calculate top 5 celltype.l2 categories by total proportion
+top_5 <- subset_data %>%
+  group_by(celltype.l2) %>%
+  summarise(total_proportion = sum(proportion)) %>%
+  arrange(desc(total_proportion)) %>%
+  top_n(5, wt = total_proportion) %>%
+  pull(celltype.l2)
+
+# Filter subset_data for top 5 categories
+top_5_data <- subset_data %>%
+  filter(celltype.l2 %in% top_5)
+
+# Normalize the proportions within each subgroup for just the top 5 cell types
+plot_data <- top_5_data %>%
+  group_by(subgroup_2) %>%
+  mutate(proportion = (proportion / sum(proportion)) * 100) %>%
+  ungroup() %>%
+  arrange(celltype.l2, subgroup_2)
+
+# Create stacked area plot
+ggplot(plot_data, aes(x = subgroup_2, y = proportion, fill = celltype.l2, group = celltype.l2)) +
+  geom_area(position = "stack", stat = "identity") +
+  scale_fill_viridis_d() +  # Use viridis color scale
+  theme_minimal() +
+  labs(title = "Top 5 Cell Type Proportions",
+       x = "Subgroup",
+       y = "Proportion (%)") +  # Update the y-axis label to indicate percentage
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Save the plot
+ggsave("figures/04-5_area_uCN.png", width = 4, height = 6, bg='white')
+ggsave("figures/04-5_area_dCN.png", width = 4, height = 6, bg='white')
+
+
+
+#### line plot modified to normalize to 100 for top 5 ###################################
+# Subset data for uCN subgroups
+subset_data <- dt@meta.data %>%
+  filter(subgroup_2 %in% c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2")) %>%
+  group_by(subgroup_2, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Subset data for dCN subgroups
+subset_data <- dt@meta.data %>%
+  filter(subgroup_2 %in% c("dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint")) %>%
+  group_by(subgroup_2, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Calculate proportions within each subgroup
+subset_data <- subset_data %>%
+  group_by(subgroup_2) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
+
+# Calculate top 5 celltype.l2 categories by total proportion
+top_5 <- subset_data %>%
+  group_by(celltype.l2) %>%
+  summarise(total_proportion = sum(proportion)) %>%
+  arrange(desc(total_proportion)) %>%
+  top_n(5, wt = total_proportion) %>%
+  pull(celltype.l2)
+
+# Filter subset_data for top 5 categories
+plot_data <- subset_data %>%
+  filter(celltype.l2 %in% top_5) %>%
+  arrange(celltype.l2, subgroup_2)
+
+# Create line plot
+ggplot(plot_data, aes(x = subgroup_2, y = proportion, color = celltype.l2, group = celltype.l2)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  scale_color_viridis_d() +  # Use viridis color scale
+  theme_minimal() +
+  labs(title = "Top 5 Cell Types",
+       x = "Subgroup",
+       y = "Proportion",  # Update the y-axis label
+       color = "Cell Type") +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),  # Bold the title and center-align it
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Save the plot
+ggsave("figures/04-5_line_uCN.png", width = 5, height = 4, bg = 'white')
+ggsave("figures/04-5_line_dCN.png", width = 5, height = 4, bg = 'white')
+
+
+
+#### line plot combine both ###############################################################################
+#### Combined line plot for uCN and dCN subgroups ###################################
+# Subset data for uCN subgroups
+subset_data_uCN <- dt@meta.data %>%
+  filter(subgroup_2 %in% c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2")) %>%
+  group_by(subgroup_2, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Calculate proportions within each subgroup for uCN
+subset_data_uCN <- subset_data_uCN %>%
+  group_by(subgroup_2) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
+
+# Calculate top 5 celltype.l2 categories by total proportion
+top_5 <- subset_data_uCN %>%
+  group_by(celltype.l2) %>%
+  summarise(total_proportion = sum(proportion)) %>%
+  arrange(desc(total_proportion)) %>%
+  top_n(5, wt = total_proportion) %>%
+  pull(celltype.l2)
+
+# Filter subset_data for top 5 categories for uCN
+plot_data_uCN <- subset_data_uCN %>%
+  filter(celltype.l2 %in% top_5) %>%
+  mutate(type = "uCN") %>%
+  arrange(celltype.l2, subgroup_2)
+
+# Subset data for dCN subgroups
+subset_data_dCN <- dt@meta.data %>%
+  filter(subgroup_2 %in% c("dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint")) %>%
+  group_by(subgroup_2, celltype.l2) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# Calculate proportions within each subgroup for dCN
+subset_data_dCN <- subset_data_dCN %>%
+  group_by(subgroup_2) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
+
+# Filter subset_data for top 5 categories for dCN
+plot_data_dCN <- subset_data_dCN %>%
+  filter(celltype.l2 %in% top_5) %>%
+  mutate(type = "dCN") %>%
+  arrange(celltype.l2, subgroup_2)
+
+# Combine uCN and dCN data
+plot_data_combined <- bind_rows(plot_data_uCN, plot_data_dCN)
+
+# Define the desired order of the x-axis
+x_order <- c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2", "dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint")
+
+# Convert subgroup_2 to a factor with specified levels
+plot_data_combined <- plot_data_combined %>%
+  mutate(subgroup_2 = factor(subgroup_2, levels = x_order))
+
+# Create combined line plot with specified x-axis order
+ggplot(plot_data_combined, aes(x = subgroup_2, y = proportion, color = celltype.l2, group = celltype.l2)) +
+  geom_line(size = 1) +
+  geom_point(aes(shape = type), size = 2) +  # Different shapes for uCN and dCN
+  scale_color_viridis_d() +  # Use viridis color scale
+  scale_shape_manual(values = c("uCN" = 16, "dCN" = 17)) +  # Circle (16) for uCN and Triangle (17) for dCN
+  theme_minimal() +
+  labs(title = "Comparison of Top 5 Cell Type Proportions of uCN and dCN Subgroups",
+       x = "Subgroup",
+       y = "Proportion",  # Update the y-axis label
+       color = "Cell Type",
+       shape = "Subgroup Type") +  # Legend title for shape
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),  # Bold the title and center-align it
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Save the combined plot
+ggsave("figures/04-5_line_combined_uCN_dCN.png", width = 8, height = 6, bg = 'white')
+
+
+
+
+## line plot for each subgroup - 0818 ---------------------------------------------------------
+# Define a function to process the data for a given set of subgroups
+process_data <- function(subgroups) {
+  dt@meta.data %>%
+    filter(subgroup_2 %in% subgroups) %>%
+    group_by(subgroup_2, celltype.l2) %>%
+    summarise(count = n(), .groups = 'drop') %>%
+    group_by(subgroup_2) %>%
+    mutate(proportion = count / sum(count)) %>%
+    ungroup()
+}
+
+# Process data for uCN and dCN subgroups separately
+uCN_data <- process_data(c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2"))
+dCN_data <- process_data(c("dCN_Init", "dCN_Nivo/ipi_1", "dCN_Nivo_maint"))
+
+# Calculate the top 5 cell types by total proportion for each dataset
+top_5_uCN <- uCN_data %>%
+  group_by(celltype.l2) %>%
+  summarise(total_proportion = sum(proportion), .groups = 'drop') %>%
+  arrange(desc(total_proportion)) %>%
+  slice_head(n = 5) %>%
+  pull(celltype.l2)
+
+top_5_dCN <- dCN_data %>%
+  group_by(celltype.l2) %>%
+  summarise(total_proportion = sum(proportion), .groups = 'drop') %>%
+  arrange(desc(total_proportion)) %>%
+  slice_head(n = 5) %>%
+  pull(celltype.l2)
+
+# Filter the data for the top 5 categories
+plot_data_uCN <- uCN_data %>%
+  filter(celltype.l2 %in% top_5_uCN) %>%
+  arrange(celltype.l2, subgroup_2)
+
+plot_data_dCN <- dCN_data %>%
+  filter(celltype.l2 %in% top_5_dCN) %>%
+  arrange(celltype.l2, subgroup_2)
+
+# Function to create the line plot
+create_plot <- function(data, title) {
+  ggplot(data, aes(x = subgroup_2, y = proportion, color = celltype.l2, group = celltype.l2)) +
+    geom_line(size = 1) +
+    geom_point(size = 2) +
+    scale_color_viridis_d(option = "C", begin = 0.3, end = 0.8) +  # Avoid yellow and light colors
+    theme_minimal() +
+    labs(title = title,
+         x = "Subgroup",
+         y = "Proportion",
+         color = "Cell Type") +
+    theme(
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+}
+
+# Create the plots
+plot_uCN <- create_plot(plot_data_uCN, "Top 5 Cell Types - uCN")
+plot_dCN <- create_plot(plot_data_dCN, "Top 5 Cell Types - dCN")
+
+# Save the plots
+ggsave("figures/04-5_line_uCN.png", plot = plot_uCN, width = 5, height = 4, bg = 'white')
+ggsave("figures/04-5_line_dCN.png", plot = plot_dCN, width = 5, height = 4, bg = 'white')

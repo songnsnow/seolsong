@@ -1,0 +1,23 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : plotting
+# author      : songnsnow
+# date        : 240708
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load packages
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+
+dt <- readRDS('rds/03-1.rds')
+
+# Plot by reduction =======================================================
+p1 <- DimPlot(dt, reduction = "wnn.umap", group.by = "celltype.l1", label=TRUE, repel=TRUE)
+p2 <- DimPlot(dt, reduction = "rna.umap", group.by = "celltype.l1", label=TRUE, repel=TRUE)
+p3 <- DimPlot(dt, reduction = "adt.umap", group.by = "celltype.l1", label=TRUE, repel=TRUE)
+p1 + p2 + p3
+ggsave(paste('figures/03-2_reductions_clustering.png',sep=''),width=15, height=5,scale=1.5)
+# =========================================================================

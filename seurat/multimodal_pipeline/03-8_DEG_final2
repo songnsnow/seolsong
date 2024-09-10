@@ -1,0 +1,144 @@
+#/usr/bin/env seu5
+#-----------------------------------------------------------------------
+# description : DEG heatmap not final code. just trying to edit
+# author      : songnsnow
+# date        : 240901
+# notes       : 
+#-----------------------------------------------------------------------
+
+# Load required libraries
+library(Seurat)
+library(dplyr)
+library(tibble)
+library(ComplexHeatmap)
+library(circlize)
+library(RColorBrewer)
+library(ggplot2)
+library(viridis)  # Load viridis for color palettes
+
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+dt <- readRDS('rds/03-1.rds')
+
+## CD4+ T uCN
+# Define variables
+celltype <- "CD4+ T"
+subgroups <- c("uCN_Init", "uCN_CN", "uCN_Nivo/ipi_2")
+output_filename <- "figures/03-8_markers_heatmap_uCN_CD4+_T.png"
+
+# Format the subgroups to include the cell type
+subgroups_with_celltype <- paste0(subgroups, "_", celltype)
+
+# Set the cell type identity
+Idents(dt) <- "subgroup_2_celltype.l1"
+
+# Find markers for RNA and ADT assays
+rna_mks <- FindMarkers(dt, ident.1 = subgroups_with_celltype[1], ident.2 = subgroups_with_celltype[3], verbose = FALSE, assay='RNA')
+adt_mks <- FindMarkers(dt, ident.1 = subgroups_with_celltype[1], ident.2 = subgroups_with_celltype[3], verbose = FALSE, assay='CITE')
+
+# Define the order of cell types for plotting
+celltype_order <- subgroups_with_celltype
+
+# Select top 10 genes based on adjusted p-value and avg_log2FC for RNA
+top_rna_genes <- rna_mks %>%
+  filter(p_val_adj <= 0.05) %>%
+  arrange(desc(abs(avg_log2FC))) %>%
+  filter(!grepl("^ENSG", rownames(.))) %>%
+  slice_head(n = 10) %>%
+  rownames()
+
+# Select top 10 genes based on adjusted p-value and avg_log2FC for ADT
+top_adt_genes <- adt_mks %>%
+  filter(p_val_adj <= 0.05) %>%
+  arrange(desc(abs(avg_log2FC))) %>%
+  filter(!grepl("^ENSG", rownames(.))) %>%
+  slice_head(n = 10) %>%
+  rownames()
+
+# Extract data for heatmap
+cite_data <- GetAssayData(dt, layer = 'data', assay = 'CITE')[top_adt_genes, ] %>% t()
+rna_subset <- GetAssayData(dt, assay = 'RNA', layer = 'data')[top_rna_genes, ] %>%
+  as.data.frame() %>%
+  t() %>%
+  as.matrix()
+
+# Normalize the data to a scale of 0 to 100
+normalize_to_scale <- function(data, min_val = 0, max_val = 100) {
+  scaled_data <- (data - min(data, na.rm = TRUE)) / (max(data, na.rm = TRUE) - min(data, na.rm = TRUE))
+  scaled_data <- scaled_data * (max_val - min_val) + min_val
+  return(scaled_data)
+}
+
+# Apply normalization
+cite_data_norm <- normalize_to_scale(cite_data)
+rna_subset_norm <- normalize_to_scale(rna_subset)
+
+# Combine normalized data into a single dataframe
+d <- cbind(dt@meta.data, cite_data_norm, rna_subset_norm)
+
+# Prepare data for plotting
+dat_plot <- d %>%
+  filter(subgroup_2_celltype.l1 %in% celltype_order) %>%
+  dplyr::group_by(subgroup_2_celltype.l1) %>%
+  dplyr::summarize_at(.vars = c(top_adt_genes, top_rna_genes), .funs = mean) %>%
+  tibble::remove_rownames() %>%
+  tibble::column_to_rownames("subgroup_2_celltype.l1")
+
+# Function to create a color palette with adjusted breaks for small changes
+create_custom_palette <- function(data, num_colors) {
+  # Use quantiles to make small changes visible
+  data_min <- quantile(data, 0.05, na.rm = TRUE)
+  data_max <- quantile(data, 0.95, na.rm = TRUE)
+  breaks <- seq(data_min, data_max, length.out = num_colors)
+  palette <- viridis(num_colors)  # Use viridis palette
+  return(list(palette = palette, breaks = breaks))
+}
+
+# Determine the number of colors and adjust breaks
+num_colors <- 100  # Adjust as needed for the number of colors
+
+# Adjust breaks for ADT data
+adt_palette <- create_custom_palette(unlist(dat_plot[, 1:10]), num_colors)
+prot_col <- colorRamp2(breaks = adt_palette$breaks, colors = adt_palette$palette)
+
+# Adjust breaks for RNA data
+rna_palette <- create_custom_palette(unlist(dat_plot[, 11:20]), num_colors)
+rna_col <- colorRamp2(breaks = rna_palette$breaks, colors = rna_palette$palette)
+
+# Create protein heatmap
+p1 <- Heatmap(t(dat_plot)[top_adt_genes, ],
+              name = "protein",
+              col = prot_col,
+              row_names_gp = gpar(color = "black", fontsize = 5),
+              rect_gp = gpar(col = "white", lwd = 1.5),
+              row_order = top_adt_genes,
+              column_order = celltype_order,
+              heatmap_legend_param = list(
+                title = "Protein",
+                title_gp = gpar(fontsize = 6),
+                labels_gp = gpar(fontsize = 6)
+              ))
+
+# Create mRNA heatmap
+mrna <- t(dat_plot)[top_rna_genes, ]
+p2 <- Heatmap(t(scale(t(mrna))),
+              name = "mRNA",
+              col = rna_col,
+              clustering_method_columns = 'average',
+              column_names_gp = gpar(color = "black", fontsize = 5),
+              row_names_gp = gpar(color = "black", fontsize = 5),
+              rect_gp = gpar(col = "white", lwd = 1.5),
+              row_order = top_rna_genes,
+              column_order = celltype_order,
+              heatmap_legend_param = list(
+                title = "mRNA",
+                title_gp = gpar(fontsize = 6),
+                labels_gp = gpar(fontsize = 6)
+              ))
+
+# Combine heatmaps
+ht_list <- p1 %v% p2
+
+# Export heatmap as PNG
+png(output_filename, width = 600, height = 1100, unit = "px", res = 300)
+ht_list
+dev.off()

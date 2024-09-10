@@ -1,0 +1,131 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : adt integration w/ harmony (after rna integration)
+# author      : songnsnow
+# date        : 240425 -> 240611
+# notes       : 
+#-----------------------------------------------------------------------
+
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_adt")   # set working directory
+getwd()     # check
+
+# load libraries
+library(Seurat)
+library(dplyr)
+library(SeuratData)
+library(ggplot2)
+library(patchwork)
+library(ragg)
+options(Seurat.object.assay.version = "v5")
+
+dt <- readRDS('rds/03_50_2_rna_itg.rds')
+save <- dt
+
+dt[["CITE"]] <- as(object = dt[["CITE"]], Class = "Assay5")
+save1 <- dt
+
+# ADT processing & integration --------------------------------------------------------------------------------
+# join layers
+DefaultAssay(dt) <- 'CITE'
+dt[["CITE"]] <- JoinLayers(dt[["CITE"]])
+save2 <- dt
+
+dt[["CITE"]] <- split(dt[["CITE"]], f = dt$batch)
+save3 <- dt
+
+# we will use all ADT ('CITE') features for dimensional reduction
+# we set a dimensional reduction name to avoid overwriting
+VariableFeatures(dt) <- rownames(dt[["CITE"]])
+dt <- dt %>% 
+  ScaleData(assay = 'CITE') %>% 
+  RunPCA(reduction.name = 'cite_pca', assay='CITE',verbose = FALSE) %>%
+  RunUMAP(dims = 1:50, reduction = "cite_pca", reduction.name = "umap.unintegrated")
+# dt <- NormalizeData(dt, normalization.method = 'CLR', margin = 2) %>%
+#       ScaleData(assay='CITE') %>%
+#       RunPCA(npcs = 120, reduction.name = 'cite_pca', assay='CITE') %>%
+#       RunUMAP(dims = 1:30, reduction = "cite_pca", reduction.name = "umap.unintegrated")
+save4 <- dt
+
+DimPlot(dt, reduction = "umap.unintegrated", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/02_adt_unitg.png',width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "umap.unintegrated", split.by = "batch")
+ggsave('figures/02_adt_unitg_batch.png',width=15, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "umap.unintegrated", split.by = "id", ncol=4)
+ggsave('figures/02_adt_unitg_id.png',width=5, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "umap.unintegrated", split.by = "donor", ncol=4)
+ggsave('figures/02_adt_unitg_donor.png',width=10, height=15,scale=1.5)
+
+DimPlot(dt, reduction = "umap.unintegrated", split.by = "timepoint", ncol=4)
+ggsave('figures/02_adt_unitg_timepoint.png',width=10, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "umap.unintegrated", split.by = "subgroup", ncol=4)
+ggsave('figures/02_adt_unitg_subgroup.png',width=10, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "umap.unintegrated", split.by = "subgroup_2", ncol=4)
+ggsave('figures/02_adt_unitg_subgroup2.png',width=10, height=5,scale=1.5)
+
+
+# harmony
+dt <- IntegrateLayers(
+  object = dt,
+  method = HarmonyIntegration,
+  features = rownames(dt[["CITE"]]),
+  assay = 'CITE',
+  orig.reduction = "cite_pca",
+  new.reduction = 'cite_harmony', 
+  verbose = F
+)
+
+# re-join layers after integration
+dt[["CITE"]] <- JoinLayers(dt[["CITE"]])
+save5 <- dt
+
+# continue processing -----------------------------------------------------------------------------------------
+# define proteins to use in clustering (non-isotype controls)
+prots = rownames(dt@assays$CITE)[1:130]
+dim_value <- '30'
+res_value <- '1'
+
+dt <- FindNeighbors(dt, assay = 'CITE', reduction = "cite_harmony",
+                          features = prots, k.param = 30, 
+                          verbose = TRUE) %>%
+      FindClusters(resolution = 1, assay = 'CITE',
+                         algorithm = 3, 
+                         cluster.name = "itg.clsts",
+                         graph.name = 'CITE_snn', 
+                         verbose = TRUE) %>%
+      RunUMAP(assay = "CITE", reduction = "cite_harmony", features = prots,
+                    seed.use = 1990, min.dist = 0.2, n.neighbors = 30,
+                    verbose = TRUE)
+save6 <- dt
+
+# plotting
+DimPlot(dt, reduction = "umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave(paste('figures/02_',dim_value,'_',res_value,'_adt_itg.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "umap", group.by = "seurat_clusters", label=TRUE)
+ggsave(paste('figures/02_',dim_value,'_',res_value,'_adt_itg_clusters.png',sep=''),width=10, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "umap", split.by = "batch")
+ggsave(paste('figures/02_',dim_value,'_',res_value,'_adt_itg_batch.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "umap", split.by = "id", ncol=4)
+ggsave(paste('figures/02_',dim_value,'_',res_value,'_adt_itg_id.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "umap", split.by = "donor", ncol=4)
+ggsave(paste('figures/02_',dim_value,'_',res_value,'_adt_itg_donor.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "umap", split.by = "timepoint", ncol=4)
+ggsave(paste('figures/02_',dim_value,'_',res_value,'_adt_itg_timepoint.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "umap", split.by = "subgroup", ncol=4)
+ggsave(paste('figures/02_',dim_value,'_',res_value,'_adt_itg_subgroup.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "umap", split.by = "subgroup_2", ncol=4)
+ggsave(paste('figures/02_',dim_value,'_',res_value,'_adt_itg_subgroup2.png',sep=''),width=15, height=10,scale=1.5)
+
+
+saveRDS(save6,paste('rds/02_',dim_value,'_',res_value,'_adt_itg.rds',sep='')) 

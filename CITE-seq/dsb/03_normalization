@@ -1,0 +1,15 @@
+# 3. Normalize protein data with the DSBNormalizeProtein Function ##########################
+rownames(cell.adt.raw)
+
+# define isotype controls 
+# isotype.controls = rownames(cell.adt.raw)[131:137]
+
+# normalize and denoise with dsb with 
+cells.dsb.norm = DSBNormalizeProtein(
+  cell_protein_matrix = cell.adt.raw, 
+  empty_drop_matrix = background.adt.mtx, 
+  denoise.counts = TRUE, 
+  use.isotype.control = TRUE, 
+  isotype.control.name.vec = rownames(cell.adt.raw)[131:137]
+  )
+# note: normalization takes ~ 20 seconds

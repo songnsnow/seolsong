@@ -1,0 +1,33 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : filter SoupOrCell doublets & DoubletFinder doublets & Cutoff QC data
+# author      : songnsnow
+# date        : 240702
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load libraries
+library(Seurat)
+
+# Load dsb data
+dsb.1 <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/01-1_b1.rds')
+dsb.2 <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/01-1_b2.rds')
+dsb.3 <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/01-1_b3.rds')
+
+# Load filtered data
+filt.1 <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat/rds/02-3_b1.rds')
+filt.2 <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat/rds/02-3_b2.rds')
+filt.3 <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat/rds/02-3_b3.rds')
+
+# Filter the Seurat objects to keep only the cells present in the corresponding filt objects
+dsb.1 <- subset(dsb.1, cells = colnames(filt.1))  # 24610
+dsb.2 <- subset(dsb.2, cells = colnames(filt.2))  # 26664
+dsb.3 <- subset(dsb.3, cells = colnames(filt.3))  # 25022
+
+# Check for NA values in id column
+dsb.list <- list(dsb.1, dsb.2, dsb.3)
+na_counts <- sapply(dsb.list, function(dsb) sum(is.na(dsb$id))) # Count the number of NA values in the 'id' column for each dataset
+names(na_counts) <- c("dsb.1", "dsb.2", "dsb.3")  # Print the results
+print(na_counts)

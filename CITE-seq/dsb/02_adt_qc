@@ -1,0 +1,44 @@
+# 2. Quality control cells and background droplets #######################
+setwd("/data/project/mRCC_HWS/analysis/sc_dsb")
+
+ggplot(md, aes(x = log10(n.gene), y = prot.size )) +
+   theme_bw() + 
+   geom_bin2d(bins = 300) + 
+   scale_fill_viridis_c(option = "C") + 
+   facet_wrap(~drop.class)
+ggsave(paste('figures/02-1_',pool,'.png',sep=''),width=6, height=6, scale=2)
+
+background_drops = rownames(
+  md[ md$prot.size > 1.5 & 
+      md$prot.size < 3 & 
+      md$rna.size < 2.5, ]
+  ) 
+background.adt.mtx = as.matrix(prot[ , background_drops])
+
+# calculate statistical thresholds for droplet filtering.
+cellmd = md[md$drop.class == 'cell', ]
+
+# filter drops with + / - 3 median absolute deviations from the median library size
+rna.mult = (3*mad(cellmd$rna.size))
+prot.mult = (3*mad(cellmd$prot.size))
+rna.lower = median(cellmd$rna.size) - rna.mult
+rna.upper = median(cellmd$rna.size) + rna.mult
+prot.lower = median(cellmd$prot.size) - prot.mult
+prot.upper = median(cellmd$prot.size) + prot.mult
+
+# filter rows based on droplet qualty control metrics
+qc_cells = rownames(
+  cellmd[cellmd$prot.size > prot.lower & 
+         cellmd$prot.size < prot.upper & 
+         cellmd$rna.size > rna.lower & 
+         cellmd$rna.size < rna.upper & 
+         cellmd$mt.prop < 0.14, ]
+  )
+
+# Check: are the number of cells passing QC in line with the expected recovery from the experiment?
+length(qc_cells)
+
+# subset the metadata ADT and RNA matrices
+cell.adt.raw = as.matrix(prot[ , qc_cells])
+cell.rna.raw = rna[ ,qc_cells]
+cellmd = cellmd[qc_cells, ]

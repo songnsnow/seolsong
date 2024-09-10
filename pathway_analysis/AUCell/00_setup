@@ -1,0 +1,11 @@
+BiocManager::install("AUCell")
+
+if (!requireNamespace("BiocManager", quietly=TRUE))
+    install.packages("BiocManager")
+# To support paralell execution:
+BiocManager::install(c("doMC", "doRNG","doSNOW"))
+# For the main example:
+BiocManager::install(c("mixtools", "SummarizedExperiment"))
+# For the examples in the follow-up section of the tutorial:
+BiocManager::install(c("DT", "plotly", "NMF", "d3heatmap",
+                       "dynamicTreeCut", "R2HTML", "Rtsne", "zoo"))

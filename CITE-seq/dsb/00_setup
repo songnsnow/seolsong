@@ -1,0 +1,4 @@
+# dsb is a CITE-seq normalization method using empty droplets
+
+# install dsb
+install.packages('dsb')

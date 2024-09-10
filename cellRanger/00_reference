@@ -1,0 +1,17 @@
+cd /data/project/mRCC_HWS/analysis/sc_cellranger/reference
+# transcriptome reference
+wget "https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCh38-2024-A.tar.gz"
+tar -xf refdata-gex-GRCh38-2024-A.tar.gz
+rm refdata-gex-GRCh38-2024-A.tar.gz
+
+# vdj reference
+wget "https://cf.10xgenomics.com/supp/cell-vdj/refdata-cellranger-vdj-GRCh38-alts-ensembl-7.1.0.tar.gz"
+tar -xf refdata-cellranger-vdj-GRCh38-alts-ensembl-7.1.0.tar.gz
+rm refdata-cellranger-vdj-GRCh38-alts-ensembl-7.1.0.tar.gz
+
+
+cd /data/project/mRCC_HWS/analysis/sc_cellranger
+# cellranger
+wget -O cellranger-8.0.0.tar.gz "https://cf.10xgenomics.com/releases/cell-exp/cellranger-8.0.0.tar.gz?Expires=1710799634&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA&Signature=QQYMTc-YfzIYm7IHpYakoTbpuRnz7ck4adN6M5NZGzIJWszh5lzSiks9naYL~sLXFcqWxuqpyhXOtorBef-lwujgkyrrWomC~w3rphdQApCSsEbvbijf-KIqFRSqV~etA4glgXl-fsGRzJMKejkDfCMhA9wXlChlki67OWiFx2UEY~MAk8hyLOobnQQN6R78hPPosYFqIZYpcBCgONgz4U134nWqW1TcI4Mk8uq-8vkYR6onPJx7iwzmr-XLF9gIGESBuiSaSr36U~uEcv7jGuvmjl~8u~npweJS7kaSR2BrFvsJSnzuxoIG2td9Act0EAHU18YRtMTY6vAGSZsBAA__"
+tar -xf cellranger-8.0.0.tar.gz
+rm cellranger-8.0.0.tar.gz

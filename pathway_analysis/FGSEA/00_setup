@@ -1,0 +1,47 @@
+library(generics)
+library(Seurat)
+library(devtools) 
+library(presto)
+library(msigdbr)
+library(fgsea) 
+library(dplyr) 
+library(tidyverse) 
+library(tidyr) 
+library(tibble) 
+library(data.table)
+library(ggplot2)
+library(reshape2) # melt 함수 사용을 위해
+
+
+# install 0826 --------------------------------------------------------------------------
+install.packages("remotes")
+library(remotes)
+
+install.packages("devtools")
+
+install.packages('generics')
+remotes::install_github("satijalab/seurat", "seurat5", quiet = TRUE)
+remotes::install_github("satijalab/seurat-data", "seurat5", quiet = TRUE)
+remotes::install_github("satijalab/azimuth", "seurat5", quiet = TRUE)
+# Error: Failed to install 'Azimuth' from GitHub:
+#   HTTP error 404.
+#   No commit found for the ref seurat5
+
+#   Did you spell the repo owner (`stuart-lab`) and repo name (`signac`) correctly?
+#   - If spelling is correct, check that you have the required permissions to access the repo.
+remotes::install_github("satijalab/seurat-wrappers", "seurat5", quiet = TRUE)
+remotes::install_github("stuart-lab/signac", "seurat5", quiet = TRUE)
+remotes::install_github("bnprks/BPCells/r")
+
+# install.packages("devtools")
+devtools::install_github("immunogenomics/presto")
+
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("msigdb", force = TRUE)
+install.packages("msigdbr")
+BiocManager::install("fgsea")
+
+install.packages("tidyverse")
+install.packages("data.table")
+install.packages('reshape2')

@@ -1,0 +1,39 @@
+gatk --java-options "-Xmx4g" GenotypeGVCFs \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -V /data/project/mRCC/analysis/bulk_vcf/outs/mRCC.g.vcf.gz \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/mRCC.vcf.gz
+
+# decompress vcf.gz ; no need to decompress index file
+gzip -d /data/project/mRCC/analysis/bulk_vcf/outs/mRCC.vcf.gz
+
+
+
+
+# s1
+gatk --java-options "-Xmx4g" GenotypeGVCFs \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -V /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s1.g.vcf.gz \
+    -O /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s1.vcf.gz
+
+# decompress vcf.gz ; no need to decompress index file
+gzip -d /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s1.vcf.gz
+
+
+# s2
+gatk --java-options "-Xmx4g" GenotypeGVCFs \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -V /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s2.g.vcf.gz \
+    -O /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s2.vcf.gz
+
+# decompress vcf.gz ; no need to decompress index file
+gzip -d /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s2.vcf.gz
+
+
+# s3
+gatk --java-options "-Xmx4g" GenotypeGVCFs \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -V /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s3.g.vcf.gz \
+    -O /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s3.vcf.gz
+
+# decompress vcf.gz ; no need to decompress index file
+gzip -d /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s3.vcf.gz

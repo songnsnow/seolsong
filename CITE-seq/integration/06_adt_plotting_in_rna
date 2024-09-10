@@ -1,0 +1,59 @@
+#/usr/bin/env R seu5
+#-----------------------------------------------------------------------
+# description : adt marker plotting in rna assay umap
+# author      : songnsnow
+# date        : 240611
+# notes       : 
+#-----------------------------------------------------------------------
+
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_adt")
+library(Seurat)
+library(remotes)
+library(BPCells)
+library(presto)
+library(glmGamPoi)
+library(SeuratWrappers)
+library(TFBSTools)
+library(Azimuth)
+library(SeuratData)
+library(patchwork)
+library(writexl)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggpubr)
+library(viridis)
+
+
+
+# plotting ==============================================================
+# level order
+patient_order <- c('RCC_A','RCC_B','RCC_C','RCC_D','RCC_E')
+subgroup2_order <- c("uCN_Init","uCN_CN","uCN_Nivo/ipi_2","dCN_Init","dCN_Nivo/ipi_1","dCN_Nivo_maint")
+subgroup_order <- c('uCN','dCN')
+timepoint_order <- c('Init','Nivo/ipi_1','CN','Nivo/ipi_2','Nivo_maint')
+
+levels(dt$id) <- patient_order
+levels(dt$subgroup_2) <- subgroup2_order
+levels(dt$subgroup) <- subgroup_order
+levels(dt$timepoint) <- timepoint_order
+
+# adt marker comparison - all cell types ---------------------------------
+dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat/rds/06-1-2_30_2.rds')
+DefaultAssay(dt) <- 'Protein'
+Idents(dt) <- 'seurat_clusters'
+fts <- c("Hu.CD3-UCHT1", "Hu.CD11c", "Hu.CD8", "Hu.CD16", "Hu.CD19", "CD3E", "ITGAX", "CD8A", "FCGR3A", "CD19")
+FeaturePlot(dt, features = fts, reduction='umap', min.cutoff = "q05", max.cutoff = "q95", ncol = 5)
+ggsave('figures/06-1_adt.png',width=15, height=6,scale=1.5)
+
+
+# adt marker comparison - T cells -------------------------------------------
+dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat/rds/08-1.rds')
+save <- dt
+
+DefaultAssay(dt) <- 'Protein'
+Idents(dt) <- 'seurat_clusters'
+fts <- c("Hu.CD3-UCHT1", "Hu.CD11c", "Hu.CD8", "Hu.CD16", "CD3E", "ITGAX", "CD8A", "FCGR3A")
+FeaturePlot(dt, features = fts, min.cutoff = "q05", max.cutoff = "q95", ncol = 4)
+ggsave('figures/08-1_adt.png',width=13, height=7,scale=1.5)
+

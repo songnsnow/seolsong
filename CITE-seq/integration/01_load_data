@@ -1,0 +1,327 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : adt integration w/ harmony
+# author      : songnsnow
+# date        : 240425
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_adt")   # set working directory
+getwd()     # check
+
+# load libraries
+library(Seurat)
+library(dplyr)
+library(SeuratData)
+library(ggplot2)
+library(patchwork)
+library(ragg)
+
+dt.1 <- readRDS('/data/project/mRCC_HWS/analysis/sc_dsb/output/dsb_p1.rds')
+dt.2 <- readRDS('/data/project/mRCC_HWS/analysis/sc_dsb/output/dsb_p2.rds')
+dt.3 <- readRDS('/data/project/mRCC_HWS/analysis/sc_dsb/output/dsb_p3.rds')
+
+# add souporcell labels ==============================================================================
+# B1 ###############################################
+soup_path <- '/data/project/mRCC_HWS/analysis/sc_demultiplex/souporcell/s1_clusters.tsv'   # SouporCell results PATH
+fn <- 'b1'  # filename
+
+### add souporcell clusters
+soup_csv <- read.csv(soup_path, header=TRUE, sep='')
+soup_df <- as.data.frame(soup_csv)
+soup_ass <- data.frame(soup_df[,1:3])   # only get assigned clusters info by cell barcode
+
+colnames(soup_ass) <- c('cell','status', 'cluster')
+rownames(soup_ass) <- soup_ass$cell
+soup_ass$cell <- NULL
+dt.1 <- AddMetaData(dt.1, metadata=soup_ass)
+
+df <- soup_ass
+df$status <- NULL
+df$cluster <- as.character(df$cluster)
+
+### add metadata 
+uCN <- c('RCC_A1','RCC_A2','RCC_B1','RCC_B2','RCC_B3')
+dCN <- c('RCC_C1','RCC_C2','RCC_D1','RCC_D2','RCC_E1','RCC_E2')
+
+for (i in 1:nrow(df)){
+  if (df[i,"cluster"] == '0'){
+    id <- 'RCC_A1'
+  }
+  else if (df[i,"cluster"] == '1'){
+    id <- 'RCC_B1'
+  }
+  else if (df[i,"cluster"] == '2'){
+    id <-'RCC_C1'
+  }
+  else if (df[i,"cluster"] == '3'){
+    id <- 'RCC_D1'
+  }
+  else {
+    id <- 'NA'
+  }
+  df[i,'id'] <- id
+}
+
+# Add RCC subgroup
+for (i in 1:nrow(df)) {
+  if(df[i, "id"] %in% uCN) {
+    subgroup <- "uCN"
+  }
+  else if (df[i, "id"] %in% dCN) {
+    subgroup <- "dCN"
+  }
+  else {
+    subgroup <- "NA"
+  }
+  df[i, "subgroup"]  <- subgroup
+}
+
+df$cluster <- NULL
+
+dt.1 <- AddMetaData(dt.1, metadata=df)
+columns.to.remove <- c('status','cluster')
+for(i in columns.to.remove) {
+  dt.1[[i]] <- NULL
+}
+
+saveRDS(dt.1,paste('rds/01_',fn,'.rds',sep=''))
+
+
+# B2 ###############################################
+# clean up
+dt.2 <- DietSeurat(dt.2, layers = c('counts'),
+  features = NULL,
+  assays = c('RNA','CITE'),
+  dimreducs = 'umap',
+  graphs = NULL,
+  misc = TRUE)
+dt.2
+
+colnames(dt.2@meta.data)
+columns.to.remove <- colnames(dt.2@meta.data[,11:18])
+for(i in columns.to.remove) {
+  dt.2[[i]] <- NULL
+}
+colnames(dt.2@meta.data)
+
+# add souporcell metadata
+soup_path <- '/data/project/mRCC_HWS/analysis/sc_demultiplex/souporcell/s2_clusters.tsv'   # SouporCell results PATH
+fn <- 'b2'  # filename
+
+### add souporcell clusters
+soup_csv <- read.csv(soup_path, header=TRUE, sep='')
+soup_df <- as.data.frame(soup_csv)
+soup_ass <- data.frame(soup_df[,1:3])   # only get assigned clusters info by cell barcode
+
+colnames(soup_ass) <- c('cell','status', 'cluster')
+rownames(soup_ass) <- soup_ass$cell
+soup_ass$cell <- NULL
+dt.2 <- AddMetaData(dt.2, metadata=soup_ass)
+
+df <- soup_ass
+df$status <- NULL
+df$cluster <- as.character(df$cluster)
+
+### add metadata 
+uCN <- c('RCC_A1','RCC_A2','RCC_B1','RCC_B2','RCC_B3')
+dCN <- c('RCC_C1','RCC_C2','RCC_D1','RCC_D2','RCC_E1','RCC_E2')
+
+# add donor id
+for (i in 1:nrow(df)){
+  if (df[i,"cluster"] == '0'){
+    id <- 'RCC_A2'
+  }
+  else if (df[i,"cluster"] == '1'){
+    id <- 'RCC_B2'
+  }
+  else if (df[i,"cluster"] == '2'){
+    id <-'RCC_C2'
+  }
+  else if (df[i,"cluster"] == '3'){
+    id <- 'RCC_E1'
+  }
+  else {
+    id <- 'NA'
+  }
+  df[i,'id'] <- id
+}
+
+# Add RCC subgroup
+for (i in 1:nrow(df)) {
+  if(df[i, "id"] %in% uCN) {
+    subgroup <- "uCN"
+  }
+  else if (df[i, "id"] %in% dCN) {
+    subgroup <- "dCN"
+  }
+  else {
+    subgroup <- "NA"
+  }
+  df[i, "subgroup"]  <- subgroup
+}
+
+df$cluster <- NULL
+
+dt.2 <- AddMetaData(dt.2, metadata=df)
+columns.to.remove <- c('status','cluster')
+for(i in columns.to.remove) {
+  dt.2[[i]] <- NULL
+}
+
+saveRDS(dt.2,paste('rds/01_',fn,'.rds',sep=''))
+
+
+# B3 ###############################################
+soup_path <- '/data/project/mRCC_HWS/analysis/sc_demultiplex/souporcell/s3_clusters.tsv'   # SouporCell results PATH
+fn <- 'b3'  # filename
+
+### add souporcell clusters
+soup_csv <- read.csv(soup_path, header=TRUE, sep='')
+soup_df <- as.data.frame(soup_csv)
+soup_ass <- data.frame(soup_df[,1:3])   # only get assigned clusters info by cell barcode
+
+colnames(soup_ass) <- c('cell','status', 'cluster')
+rownames(soup_ass) <- soup_ass$cell
+soup_ass$cell <- NULL
+dt.3 <- AddMetaData(dt.3, metadata=soup_ass)
+
+df <- soup_ass
+df$status <- NULL
+df$cluster <- as.character(df$cluster)
+
+### add metadata 
+uCN <- c('RCC_A1','RCC_A2','RCC_B1','RCC_B2','RCC_B3')
+dCN <- c('RCC_C1','RCC_C2','RCC_D1','RCC_D2','RCC_E1','RCC_E2')
+
+for (i in 1:nrow(df)){
+  if (df[i,"cluster"] == '0'){
+    id <- 'RCC_B3'
+  }
+  else if (df[i,"cluster"] == '1'){
+    id <- 'RCC_D2'
+  }
+  else if (df[i,"cluster"] == '2'){
+    id <-'RCC_E2'
+  }
+  else {
+    id <- 'NA'
+  }
+  df[i,'id'] <- id
+}
+
+# Add RCC subgroup
+for (i in 1:nrow(df)) {
+  if(df[i, "id"] %in% uCN) {
+    subgroup <- "uCN"
+  }
+  else if (df[i, "id"] %in% dCN) {
+    subgroup <- "dCN"
+  }
+  else {
+    subgroup <- "NA"
+  }
+  df[i, "subgroup"]  <- subgroup
+}
+
+df$cluster <- NULL
+
+dt.3 <- AddMetaData(dt.3, metadata=df)
+columns.to.remove <- c('status','cluster')
+for(i in columns.to.remove) {
+  dt.3[[i]] <- NULL
+}
+
+saveRDS(dt.3,paste('rds/01_',fn,'.rds',sep=''))
+
+
+
+# merge pools -----------------------------------------------------------------------------------------
+dt.1$batch <- 'B1'
+dt.2$batch <- 'B2'
+dt.3$batch <- 'B3'
+
+dt <- merge(dt.1,y=c(dt.2, dt.3))
+colnames(dt@meta.data)
+
+# add metadata
+df <- dt@meta.data[,11:12]
+df$subgroup <- NULL
+
+for (i in 1:nrow(df)){
+  if (df[i,"id"] == 'RCC_A1'){
+    donor <- 'RCC_A'
+    timepoint <- 'Init'
+    subgroup_2 <- 'uCN_Init'
+  }
+  else if (df[i,"id"] == 'RCC_A2'){
+    donor <- 'RCC_A'
+    timepoint <- 'Nivo/ipi_2'
+    subgroup_2 <- 'uCN_Nivo/ipi_2'
+  }
+  else if (df[i,"id"] == 'RCC_B1'){
+    donor <- 'RCC_B'
+    timepoint <- 'Init'
+    subgroup_2 <- 'uCN_Init'
+  }
+  else if (df[i,"id"] == 'RCC_B2'){
+    donor <- 'RCC_B'
+    timepoint <- 'CN'
+    subgroup_2 <- 'uCN_CN'
+  }
+  else if (df[i,"id"] == 'RCC_B3'){
+    donor <- 'RCC_B'
+    timepoint <- 'Nivo/ipi_2'
+    subgroup_2 <- 'uCN_Nivo/ipi_2'
+  }
+  else if (df[i,"id"] == 'RCC_C1'){
+    donor <- 'RCC_C'
+    timepoint <- 'Nivo/ipi_1'
+    subgroup_2 <- 'dCN_Nivo/ipi_1'
+  }
+  else if (df[i,"id"] == 'RCC_C2'){
+    donor <- 'RCC_C'
+    timepoint <- 'Nivo_maint'
+    subgroup_2 <- 'dCN_Nivo_maint'
+  }
+  else if (df[i,"id"] == 'RCC_D1'){
+    donor <- 'RCC_D'
+    timepoint <- 'Nivo/ipi_1'
+    subgroup_2 <- 'dCN_Nivo/ipi_1'
+  }
+  else if (df[i,"id"] == 'RCC_D2'){
+    donor <- 'RCC_D'
+    timepoint <- 'Nivo_maint'
+    subgroup_2 <- 'dCN_Nivo_maint'
+  }
+  else if (df[i,"id"] == 'RCC_E1'){
+    donor <- 'RCC_E'
+    timepoint <- 'Init'
+    subgroup_2 <- 'dCN_Init'
+  }
+  else if (df[i,"id"] == 'RCC_E2'){
+    donor <- 'RCC_E'
+    timepoint <- 'Nivo/ipi_1'
+    subgroup_2 <- 'dCN_Nivo/ipi_1'
+  }
+  else {
+    donor <- 'NA'
+    timepoint <- 'NA'
+    subgroup_2 <- 'NA'
+  }
+  df[i,'donor'] <- donor
+  df[i,'timepoint'] <- timepoint
+  df[i,'subgroup_2'] <- subgroup_2
+}
+
+df$id <- NULL
+dt <- AddMetaData(dt, metadata=df)
+
+# clean up dsb metadata
+# colnames(dt@meta.data)
+# columns.to.remove <- colnames(dt@meta.data[,3:5])
+# for(i in columns.to.remove) {
+#   dt[[i]] <- NULL
+# }
+# colnames(dt@meta.data)
+
+saveRDS(dt,paste('rds/01_rcc.rds',sep=''))

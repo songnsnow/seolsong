@@ -1,0 +1,395 @@
+#/usr/bin/env R deseq2
+#-----------------------------------------------------------------------
+# description : plotting
+# author      : songnsnow
+# date        : 240710
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load packages
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+# conda install bioconda::bioconductor-enhancedvolcano
+library(EnhancedVolcano)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(ComplexHeatmap)
+library(colorspace)
+library(RColorBrewer)
+library(magrittr)
+# install.packages('devtools')
+# libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+# install.packages('ragg')
+# library(devtools)
+# devtools::install_github('immunogenomics/presto')
+
+dt <- readRDS('rds/03-1.rds')
+
+celltype_order <- c(
+  'uCN_CD4+ T', 'dCN_CD4+ T',
+  'uCN_Treg', 'dCN_Treg',
+  'uCN_CD8+ T', 'dCN_CD8+ T',
+  'uCN_MAIT', 'dCN_MAIT',
+  'uCN_gdT', 'dCN_gdT',
+  'uCN_NKT', 'dCN_NKT',
+  'uCN_NK', 'dCN_NK',
+  'uCN_CD14 Mono', 'dCN_CD14 Mono',
+  'uCN_CD16 Mono', 'dCN_CD16 Mono',
+  'uCN_cDC', 'dCN_cDC',
+  'uCN_pDC', 'dCN_pDC',
+  'uCN_B', 'dCN_B',
+  'uCN_Plasma', 'dCN_Plasma'
+)
+
+
+
+# by subgroup (uCN vs dCN)
+Idents(dt) <- "subgroup_celltype.l1"
+CD4T.rna <- FindMarkers(dt, ident.1 = "uCN_CD4+ T", ident.2 = "dCN_CD4+ T", verbose = FALSE, assay='RNA')
+CD4T.adt <- FindMarkers(dt, ident.1 = "uCN_CD4+ T", ident.2 = "dCN_CD4+ T", verbose = FALSE, assay='CITE')
+celltype_order <- c('uCN_CD4+ T', 'dCN_CD4+ T')
+
+# Heatmap ============================================================
+# Select top 10 genes based on adjusted p-value for RNA and ADT
+top10_rna_genes <- CD4T.rna %>% top_n(-10, wt = p_val_adj) %>% rownames()
+top10_adt_genes <- CD4T.adt %>% top_n(-10, wt = p_val_adj) %>% rownames()
+
+cite_data = GetAssayData(dt,layer = 'data',assay = 'CITE')[top10_adt_genes, ] %>% t()
+rna_subset = GetAssayData(dt,assay = 'RNA',layer = 'data')[top10_rna_genes, ] %>%
+  as.data.frame() %>% 
+  t() %>% 
+  as.matrix()
+d = cbind(dt@meta.data, cite_data, rna_subset) # combine into dataframe 
+
+dat_plot <- d %>% 
+  filter(subgroup_celltype.l1 %in% c("uCN_CD4+ T", "dCN_CD4+ T")) %>%
+  dplyr::group_by(subgroup_celltype.l1) %>% 
+  dplyr::summarize_at(.vars = c(top10_adt_genes, top10_rna_genes), .funs = mean) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("subgroup_celltype.l1") 
+
+suppressMessages(library(ComplexHeatmap)); ht_opt$message = FALSE
+
+# Protein heatmap --------------------------------
+# Create a color palette using RColorBrewer
+custom_palette <- rev(colorRampPalette(brewer.pal(6, "RdBu"))(256))
+calm_palette <- desaturate(custom_palette, amount = 0.4) # Reduce saturation
+calm_palette <- lighten(calm_palette, amount = 0.1)     # Slightly lighten the colors
+prot_col <- circlize::colorRamp2(breaks = c(0, 1, 2, 3, 4, 5), colors = calm_palette[c(1, 51, 102, 153, 204, 256)])
+
+p1 = Heatmap(t(dat_plot)[top10_adt_genes, ], 
+             name = "protein", 
+             col = prot_col, 
+            #  use_raster = T,
+            #  raster_quality = 10,
+             row_names_gp = gpar(color = "black", fontsize = 5),
+             rect_gp = gpar(col = "white", lwd = 3),
+             row_order = top10_adt_genes,
+             column_order = celltype_order
+             )
+# --------------------------------------------------
+
+# mRNA heatmap -----------------------------------
+mrna = t(dat_plot)[top10_rna_genes, ]
+
+## Create a color palette using RColorBrewer
+custom_palette <- rev(colorRampPalette(brewer.pal(6, "RdBu"))(256))
+calm_palette <- desaturate(custom_palette, amount = 0.4) # Reduce saturation
+calm_palette <- lighten(calm_palette, amount = 0.1)     # Slightly lighten the colors
+rna_col <- circlize::colorRamp2(breaks = c(-2, -1, 0, 1, 2), colors = calm_palette[c(1, 64, 128, 192, 256)])
+
+p2 = Heatmap(t(scale(t(mrna))), 
+             name = "mRNA", 
+             col = rna_col,
+            #  use_raster = T,
+            #  raster_quality = 10,
+             clustering_method_columns = 'average',
+             column_names_gp = gpar(color = "black", fontsize = 7), 
+             row_names_gp = gpar(color = "black", fontsize = 5),
+             rect_gp = gpar(col = "white", lwd = 3),
+             row_order = top10_rna_genes,
+             column_order = celltype_order
+             )
+# --------------------------------------------------
+
+ht_list = p1 %v% p2 # Combine heatmaps
+png('figures/03-5_markers_heatmap.png',width=1500, height=2300, unit="px", res=300) # Export heatmap
+ht_list
+dev.off()
+
+
+
+
+
+
+# top 20 =========================================================================
+# by subgroup (uCN vs dCN)
+Idents(dt) <- "subgroup_celltype.l1"
+CD4T.rna <- FindMarkers(dt, ident.1 = "uCN_CD4+ T", ident.2 = "dCN_CD4+ T", verbose = FALSE, assay='RNA')
+CD4T.adt <- FindMarkers(dt, ident.1 = "uCN_CD4+ T", ident.2 = "dCN_CD4+ T", verbose = FALSE, assay='CITE')
+celltype_order <- c('uCN_CD4+ T', 'dCN_CD4+ T')
+
+# Select top 20 genes based on adjusted p-value and avg_log2FC for RNA
+top20_rna_genes <- CD4T.rna %>%
+  filter(p_val_adj <= 0.05) %>%
+  arrange(desc(abs(avg_log2FC))) %>%
+  slice_head(n = 20) %>%
+  rownames()
+
+# Select top 20 genes based on adjusted p-value and avg_log2FC for ADT
+top20_adt_genes <- CD4T.adt %>%
+  filter(p_val_adj <= 0.05) %>%
+  arrange(desc(abs(avg_log2FC))) %>%
+  slice_head(n = 20) %>%
+  rownames()
+
+# Extract data for heatmap
+cite_data <- GetAssayData(dt, layer = 'data', assay = 'CITE')[top20_adt_genes, ] %>% t()
+rna_subset <- GetAssayData(dt, assay = 'RNA', layer = 'data')[top20_rna_genes, ] %>%
+  as.data.frame() %>%
+  t() %>%
+  as.matrix()
+
+d <- cbind(dt@meta.data, cite_data, rna_subset)  # Combine into dataframe
+
+dat_plot <- d %>%
+  filter(subgroup_celltype.l1 %in% c("uCN_CD4+ T", "dCN_CD4+ T")) %>%
+  dplyr::group_by(subgroup_celltype.l1) %>%
+  dplyr::summarize_at(.vars = c(top20_adt_genes, top20_rna_genes), .funs = mean) %>%
+  tibble::remove_rownames() %>%
+  tibble::column_to_rownames("subgroup_celltype.l1")
+
+# Palette
+create_custom_palette <- function(data, num_colors) {
+  data_min <- min(data, na.rm = TRUE)
+  data_max <- max(data, na.rm = TRUE)
+  breaks <- seq(data_min, data_max, length.out = num_colors)
+  palette <- colorRampPalette(brewer.pal(9, "RdBu"))(num_colors)
+  return(list(palette = palette, breaks = breaks))
+}
+
+# Determine number of colors and adjust breaks
+num_colors <- 100  # Adjust as needed for the number of colors
+
+# Adjust breaks for ADT data
+adt_palette <- create_custom_palette(unlist(dat_plot[, 1:20]), num_colors)
+prot_col <- colorRamp2(breaks = adt_palette$breaks, colors = adt_palette$palette)
+
+# Adjust breaks for RNA data
+rna_palette <- create_custom_palette(unlist(dat_plot[, 21:40]), num_colors)
+rna_col <- colorRamp2(breaks = rna_palette$breaks, colors = rna_palette$palette)
+
+
+# Create protein heatmap
+p1 <- Heatmap(t(dat_plot)[top20_adt_genes, ],
+              name = "protein",
+              col = prot_col,
+              row_names_gp = gpar(color = "black", fontsize = 5),
+              rect_gp = gpar(col = "white", lwd = 3),
+              row_order = top20_adt_genes,
+              column_order = celltype_order)
+
+# Create mRNA heatmap
+mrna <- t(dat_plot)[top20_rna_genes, ]
+p2 <- Heatmap(t(scale(t(mrna))),
+              name = "mRNA",
+              col = rna_col,
+              clustering_method_columns = 'average',
+              column_names_gp = gpar(color = "black", fontsize = 7),
+              row_names_gp = gpar(color = "black", fontsize = 5),
+              rect_gp = gpar(col = "white", lwd = 3),
+              row_order = top20_rna_genes,
+              column_order = celltype_order)
+
+# Combine heatmaps
+ht_list <- p1 %v% p2
+
+# Export heatmap as PNG
+png('figures/03-5_markers_heatmap_cd4.png', width = 700, height = 2300, unit = "px", res = 300)
+ht_list
+dev.off()
+
+
+
+
+
+
+
+
+
+
+# Volcano plot =====================================================================
+# Set the cell identities in the Seurat object
+Idents(dt) <- "subgroup_celltype.l1"
+subgroups <- c("uCN", "dCN")
+
+celltype <- "CD4+ T"
+output_filename <- "figures/03-5_volcano_CD4+_T.png"
+
+# Define identity groups
+ident.1 <- paste0(subgroups[1], "_", celltype)
+ident.2 <- paste0(subgroups[2], "_", celltype)
+celltype_order <- paste0(subgroups, "_", celltype)
+
+# Find markers between two groups
+rna_mks <- FindMarkers(dt, ident.1 = ident.1, ident.2 = ident.2, verbose = FALSE, assay='RNA')
+
+# Handle p-values
+lowest_non_zero_p_val <- min(rna_mks$p_val_adj[rna_mks$p_val_adj > 0])
+rna_mks$p_val_adj[rna_mks$p_val_adj == 0] <- 10^-1 * lowest_non_zero_p_val
+
+# Define p-value cutoff
+pCutoff <- 10e-16
+
+# Assign custom colors for the plot based on fold-change and p-value cutoff
+keyvals <- ifelse(rna_mks$p_val_adj > pCutoff, 'grey70',
+                  ifelse(rna_mks$avg_log2FC < -1.0, 'dodgerblue',
+                         ifelse(rna_mks$avg_log2FC > 1.0, 'firebrick', 'grey70')))
+keyvals[is.na(keyvals)] <- 'grey70'
+
+# Add custom names for the legend
+names(keyvals) <- ifelse(keyvals == 'firebrick', 'high', 
+                         ifelse(keyvals == 'dodgerblue', 'low', 'mid'))
+
+# Print significant genes
+print(rownames(rna_mks)[names(keyvals) %in% c('high')])
+print(rownames(rna_mks)[names(keyvals) %in% c('low')])
+
+# Plot the volcano plot with the new color scheme including p-value cutoff
+EnhancedVolcano(rna_mks,
+                lab = rownames(rna_mks),
+                x = 'avg_log2FC',
+                y = 'p_val_adj',
+                xlim = c(-10, 10),
+                ylim = c(0, max(-log10(rna_mks$p_val_adj)) + 1),
+                title = 'CD4+ T uCN vs dCN',
+                pCutoff = pCutoff,
+                FCcutoff = 1.0,
+                pointSize = 2.0,
+                labSize = 3.0,
+                colCustom = keyvals,
+                colAlpha = 1,
+                selectLab = rownames(rna_mks)[names(keyvals) %in% c('high', 'low')],
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0)  
+  # +coord_flip()
+
+# Save the plot
+ggsave(output_filename, width = 7, height = 7)
+
+#---------------------------------------------------
+celltype <- "CD8+ T"
+output_filename <- "figures/03-5_volcano_CD8+_T.png"
+
+# Define identity groups
+ident.1 <- paste0(subgroups[1], "_", celltype)
+ident.2 <- paste0(subgroups[2], "_", celltype)
+celltype_order <- paste0(subgroups, "_", celltype)
+
+# Find markers between two groups
+rna_mks <- FindMarkers(dt, ident.1 = ident.1, ident.2 = ident.2, verbose = FALSE, assay='RNA')
+cd8_mks <- rna_mks
+
+# Handle p-values
+lowest_non_zero_p_val <- min(rna_mks$p_val_adj[rna_mks$p_val_adj > 0])
+rna_mks$p_val_adj[rna_mks$p_val_adj == 0] <- 10^-1 * lowest_non_zero_p_val
+
+# Define p-value cutoff
+pCutoff <- 10e-16
+
+# Assign custom colors for the plot based on fold-change and p-value cutoff
+keyvals <- ifelse(rna_mks$p_val_adj > pCutoff, 'grey70',
+                  ifelse(rna_mks$avg_log2FC < -1.0, 'dodgerblue',
+                         ifelse(rna_mks$avg_log2FC > 1.0, 'firebrick', 'grey70')))
+keyvals[is.na(keyvals)] <- 'grey70'
+
+# Add custom names for the legend
+names(keyvals) <- ifelse(keyvals == 'firebrick', 'high', 
+                         ifelse(keyvals == 'dodgerblue', 'low', 'mid'))
+
+# Print significant genes
+print(rownames(rna_mks)[names(keyvals) %in% c('high')])
+print(rownames(rna_mks)[names(keyvals) %in% c('low')])
+
+# Plot the volcano plot with the new color scheme including p-value cutoff
+EnhancedVolcano(rna_mks,
+                lab = rownames(rna_mks),
+                x = 'avg_log2FC',
+                y = 'p_val_adj',
+                xlim = c(-5, 8),
+                ylim = c(0, max(-log10(rna_mks$p_val_adj)) + 1),
+                title = 'CD8+ T uCN vs dCN',
+                pCutoff = pCutoff,
+                FCcutoff = 1.0,
+                pointSize = 2.0,
+                labSize = 3.0,
+                colCustom = keyvals,
+                colAlpha = 1,
+                selectLab = rownames(rna_mks)[names(keyvals) %in% c('high', 'low')],
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0)  
+  # +coord_flip()
+
+# Save the plot
+ggsave(output_filename, width = 7, height = 7)
+
+#---------------------------------------------------
+celltype <- "CD14 Mono"
+output_filename <- "figures/03-5_volcano_CD14 Mono.png"
+
+# Define identity groups
+ident.1 <- paste0(subgroups[1], "_", celltype)
+ident.2 <- paste0(subgroups[2], "_", celltype)
+celltype_order <- paste0(subgroups, "_", celltype)
+
+# Find markers between two groups
+rna_mks <- FindMarkers(dt, ident.1 = ident.1, ident.2 = ident.2, verbose = FALSE, assay='RNA')
+
+# Handle p-values
+lowest_non_zero_p_val <- min(rna_mks$p_val_adj[rna_mks$p_val_adj > 0])
+rna_mks$p_val_adj[rna_mks$p_val_adj == 0] <- 10^-1 * lowest_non_zero_p_val
+
+# Define p-value cutoff
+pCutoff <- 10e-16
+
+# Assign custom colors for the plot based on fold-change and p-value cutoff
+keyvals <- ifelse(rna_mks$p_val_adj > pCutoff, 'grey70',
+                  ifelse(rna_mks$avg_log2FC < -1.0, 'dodgerblue',
+                         ifelse(rna_mks$avg_log2FC > 1.0, 'firebrick', 'grey70')))
+keyvals[is.na(keyvals)] <- 'grey70'
+
+# Add custom names for the legend
+names(keyvals) <- ifelse(keyvals == 'firebrick', 'high', 
+                         ifelse(keyvals == 'dodgerblue', 'low', 'mid'))
+
+# Print significant genes
+print(rownames(rna_mks)[names(keyvals) %in% c('high')])
+print(rownames(rna_mks)[names(keyvals) %in% c('low')])
+
+# Plot the volcano plot with the new color scheme including p-value cutoff
+EnhancedVolcano(rna_mks,
+                lab = rownames(rna_mks),
+                x = 'avg_log2FC',
+                y = 'p_val_adj',
+                xlim = c(-5, 5),
+                ylim = c(0, max(-log10(rna_mks$p_val_adj)) + 1),
+                title = 'CD14 Mono uCN vs dCN',
+                pCutoff = pCutoff,
+                FCcutoff = 1.0,
+                pointSize = 2.0,
+                labSize = 3.0,
+                colCustom = keyvals,
+                colAlpha = 1,
+                selectLab = rownames(rna_mks)[names(keyvals) %in% c('high', 'low')],
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 4.0)  
+  # +coord_flip()
+
+# Save the plot
+ggsave(output_filename, width = 7, height = 7)

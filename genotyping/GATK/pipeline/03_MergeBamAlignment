@@ -1,0 +1,39 @@
+picard MergeBamAlignment \
+    ALIGNED=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/01Aligned.sortedByCoord.out.bam \
+    UNMAPPED=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/02Unmapped.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/03MergeBam.bam \
+    R=/data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    INCLUDE_SECONDARY_ALIGNMENTS=false \
+    VALIDATION_STRINGENCY=SILENT
+
+picard MergeBamAlignment \
+    ALIGNED=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/01Aligned.sortedByCoord.out.bam \
+    UNMAPPED=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/02Unmapped.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/03MergeBam.bam \
+    R=/data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    INCLUDE_SECONDARY_ALIGNMENTS=false \
+    VALIDATION_STRINGENCY=SILENT
+
+picard MergeBamAlignment \
+    ALIGNED=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/01Aligned.sortedByCoord.out.bam \
+    UNMAPPED=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/02Unmapped.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/03MergeBam.bam \
+    R=/data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    INCLUDE_SECONDARY_ALIGNMENTS=false \
+    VALIDATION_STRINGENCY=SILENT
+
+picard MergeBamAlignment \
+    ALIGNED=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/01Aligned.sortedByCoord.out.bam \
+    UNMAPPED=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/02Unmapped.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/03MergeBam.bam \
+    R=/data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    INCLUDE_SECONDARY_ALIGNMENTS=false \
+    VALIDATION_STRINGENCY=SILENT
+
+picard MergeBamAlignment \
+    ALIGNED=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/01Aligned.sortedByCoord.out.bam \
+    UNMAPPED=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/02Unmapped.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/03MergeBam.bam \
+    R=/data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    INCLUDE_SECONDARY_ALIGNMENTS=false \
+    VALIDATION_STRINGENCY=SILENT

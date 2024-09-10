@@ -1,0 +1,180 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : celltyping l2 - T/NK
+# author      : songnsnow
+# date        : 240710
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load packages
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+library(dplyr)
+library(ggplot2)
+
+dt <- readRDS('rds/03-1.T_NK_cell.rds')
+Idents(dt) <- 'celltype.l1'
+dt <- subset(dt, idents = c("CD4+ T","CD8+ T","gdT","MAIT","Treg","NKT"))
+Idents(dt) <- 'seurat_clusters'
+# RNA processing & integration ===========================================================
+# Join layers
+DefaultAssay(dt) <- 'RNA'
+dt[["RNA"]] <- JoinLayers(dt[["RNA"]])
+dt[["RNA"]] <- split(dt[["RNA"]], f = dt$batch)
+
+# 1st processing
+dt <- NormalizeData(dt, normalization.method = 'LogNormalize', margin = 2, verbose=TRUE) %>%
+      FindVariableFeatures() %>%
+      ScaleData(assay='RNA', verbose=TRUE) %>%
+      RunPCA(npcs = 50, reduction.name = 'rna_pca', assay='RNA', verbose=TRUE) %>%
+      RunUMAP(dims = 1:50, reduction = "rna_pca", reduction.name = "rna_umap.unint", verbose=TRUE)
+
+DimPlot(dt, reduction = "rna_umap.unint", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/04-1-2_rna_unint.png',width=15, height=10,scale=1.5)
+
+# Harmony integration to remove batch effect
+dt <- IntegrateLayers(
+  object = dt,
+  method = HarmonyIntegration,
+  features = rownames(dt[["RNA"]]),
+  assay = 'RNA',
+  orig.reduction = "rna_pca",
+  new.reduction = 'rna_harm', 
+  verbose = T
+)
+
+# Re-join layers after integration
+dt[["RNA"]] <- JoinLayers(dt[["RNA"]])
+
+# Continue processing - dim:50, res:2
+dt <- FindNeighbors(dt, dims = 1:50, assay = 'RNA', reduction = "rna_harm")
+dt <- FindClusters(dt, resolution = 2, cluster.name = "rna_clst.int", graph.name = 'RNA_snn')
+dt <- RunUMAP(dt, dims = 1:50, assay = "RNA", reduction = "rna_harm", reduction.name = "rna_umap.int")
+
+# plotting
+DimPlot(dt, reduction = "rna_umap.int", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/04-1-2_rna_int.png',width=15, height=10,scale=1.5)
+
+# ADT processing & integration ===========================================================
+dt[["CITE"]] <- as(object = dt[["CITE"]], Class = "Assay5")
+
+# Join layers
+DefaultAssay(dt) <- 'CITE'
+dt[["CITE"]] <- JoinLayers(dt[["CITE"]])
+dt[["CITE"]] <- split(dt[["CITE"]], f = dt$batch)
+
+# 1st processing
+VariableFeatures(dt) <- rownames(dt[["CITE"]])
+dt <- dt %>% 
+  ScaleData(assay = 'CITE') %>% 
+  RunPCA(reduction.name = 'cite_pca', assay='CITE',verbose = FALSE) %>%
+  RunUMAP(dims = 1:50, reduction = "cite_pca", reduction.name = "cite_umap.unint")
+
+DimPlot(dt, reduction = "cite_umap.unint", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/04-1-2_cite_unint.png',width=15, height=10,scale=1.5)
+
+# Harmony integration to remove batch effects
+dt <- IntegrateLayers(
+  object = dt,
+  method = HarmonyIntegration,
+  features = rownames(dt[["CITE"]]),
+  assay = 'CITE',
+  orig.reduction = "cite_pca",
+  new.reduction = 'cite_harm', 
+  verbose = F
+)
+
+# Re-join layers after integration
+dt[["CITE"]] <- JoinLayers(dt[["CITE"]])
+
+# Continue processing - dim:30, res:1
+prots = rownames(dt@assays$CITE)[1:130] ## Define proteins to use in clustering (non-isotype controls)
+dt <- FindNeighbors(dt, assay = 'CITE', reduction = "cite_harm",
+                          features = prots, k.param = 30, 
+                          verbose = TRUE) %>%
+      FindClusters(resolution = 1, assay = 'CITE',
+                         algorithm = 3, 
+                         cluster.name = "cite_clst.int",
+                         graph.name = 'CITE_snn', 
+                         verbose = TRUE) %>%
+      RunUMAP(assay = "CITE", reduction = "cite_harm", features = prots,
+                    seed.use = 1990, min.dist = 0.2, n.neighbors = 30,
+                    verbose = TRUE, reduction.name = "cite_umap.int")
+
+# Plotting
+DimPlot(dt, reduction = "cite_umap.int", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/04-1-2_cite_int.png',width=15, height=10,scale=1.5)
+save <- dt
+
+# WNN Integration ==========================================================================
+# Check
+DefaultAssay(dt) <- 'RNA'
+DimPlot(dt, reduction = "umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave(paste('figures/04-1-2_check.png',sep=''),width=15, height=10,scale=1.5)
+
+ElbowPlot(dt,reduction='rna_pca',ndims=50) + theme_classic()
+ggsave(paste('figures/04-1-2_elbowplot.png',sep=''),width=10, height=7,scale=1)
+
+# RNA + ADT processing
+# save <- dt #30
+dt <- FindMultiModalNeighbors(
+  dt, reduction.list = list("rna_harm", "cite_harm"), 
+  dims.list = list(1:20, 1:50), modality.weight.name = "RNA.weight"
+)
+dt <- RunUMAP(dt, nn.name = "weighted.nn", reduction.name = "wnn.umap", reduction.key = "wnnUMAP_",n.neighbors=50, min.dist=0.5)
+dt <- FindClusters(dt, graph.name = "wsnn", cluster.name = "wnn_clst",algorithm = 3, resolution = 1, verbose = TRUE, random.seed = 1990)
+
+# RNA vs ADT -------------------------------------------------------
+dt <- RunUMAP(dt, reduction = 'rna_harm', dims = 1:20, assay = 'RNA', 
+              reduction.name = 'rna.umap', reduction.key = 'rnaUMAP_')
+prots = rownames(dt@assays$CITE)[1:130]
+dt <- RunUMAP(dt, assay = "CITE", reduction = "cite_harm", features = prots,
+                    seed.use = 1990, min.dist = 0.2, n.neighbors = 50,
+                    verbose = TRUE, reduction.name='adt.umap',reduction.key = 'citeUMAP_')
+
+
+# General plotting ==========================================================================
+DefaultAssay(dt) <- 'RNA'
+DimPlot(dt, reduction = "wnn.umap", group.by = "seurat_clusters", label=TRUE, repel=TRUE)
+ggsave(paste('figures/04-1-2_clusters.png',sep=''),width=8, height=8,scale=1.5)
+
+DimPlot(dt, reduction = "wnn.umap", group.by = "seurat_clusters", label=TRUE, repel=TRUE)
+ggsave(paste('figures/04-1-2_clusters_lowres.png',sep=''),width=5, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "wnn.umap", split.by = "seurat_clusters", label=TRUE, ncol=5)
+ggsave(paste('figures/04-1-2_clusters_splitby_clusters.png',sep=''),width=10, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "wnn.umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave(paste('figures/04-1-2_batch_effect.png',sep=''),width=15, height=10,scale=1.5)
+
+p1 <- DimPlot(dt, reduction = "wnn.umap", group.by = "batch")
+p2 <- DimPlot(dt, reduction = "rna.umap", group.by = "batch")
+p3 <- DimPlot(dt, reduction = "adt.umap", group.by = "batch")
+p1 + p2 + p3
+ggsave(paste('figures/04-1-2_batch_effect_2.png',sep=''),width=15, height=5,scale=1.5)
+
+
+# markers plot ===============================================================================
+rna_general <- c('CD2','CD3D','CD3E','CD4','CD8A','CD8B','NKG7','GNLY','KLRD1','FGFBP2','TRDV2','FOXP3','SLC4A10','ZBTB16','CD14','CD68','LYZ','AIF1','C1QA','C1QB','C1QC','CLEC9A','CD1C','FCER1A','CLEC10A','CLEC4C','IRF7','IRF8','LILRA4','CD79A','CD19','MS4A1','MZB1','JCHAIN','STMN1','MKI67','PPBP')
+DefaultAssay(dt) <- 'RNA'
+Idents(dt) <- 'seurat_clusters'
+mks <- rna_general
+dp <- DotPlot(object = dt, features = mks, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip() + theme_classic()
+ggsave('figures/04-1-2_dp_general_rna_mks.jpg',plot=dp,width=7, height=4, scale=2)
+
+
+# SAVE
+saveRDS(dt,'rds/04-1-2.rds')
+
+# correct labels 240830 ------------------------
+dt <- readRDS('rds/04-1-2.rds')
+# new <- readRDS('rds/01-3.rds')
+dt$subgroup <- new$subgroup
+dt$subgroup_2 <- new$subgroup_2
+dt$timepoint <- new$timepoint
+
+table(dt$subgroup,dt$subgroup_2)    #check
+saveRDS(dt, 'rds/04-1-2.rds')
+# -----------------------------------------------

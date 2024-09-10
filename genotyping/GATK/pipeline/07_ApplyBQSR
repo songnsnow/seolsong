@@ -1,0 +1,49 @@
+  gatk --java-options "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
+            -XX:+PrintGCDetails -Xloggc:gc_log.log \
+            -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Xms3000m" \
+    ApplyBQSR \
+    --add-output-sam-program-record \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/CKS/06AddOrRep.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/CKS/07BQSR.bam \
+    --bqsr-recal-file /data/project/mRCC/analysis/bulk_vcf/outs/CKS/06Recal.table
+ 
+  gatk --java-options "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
+            -XX:+PrintGCDetails -Xloggc:gc_log.log \
+            -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Xms3000m" \
+    ApplyBQSR \
+    --add-output-sam-program-record \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/KKH/06AddOrRep.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/KKH/07BQSR.bam \
+    --bqsr-recal-file /data/project/mRCC/analysis/bulk_vcf/outs/KKH/06Recal.table
+
+  gatk --java-options "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
+            -XX:+PrintGCDetails -Xloggc:gc_log.log \
+            -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Xms3000m" \
+    ApplyBQSR \
+    --add-output-sam-program-record \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/PJY/06AddOrRep.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/PJY/07BQSR.bam \
+    --bqsr-recal-file /data/project/mRCC/analysis/bulk_vcf/outs/PJY/06Recal.table
+
+  gatk --java-options "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
+            -XX:+PrintGCDetails -Xloggc:gc_log.log \
+            -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Xms3000m" \
+    ApplyBQSR \
+    --add-output-sam-program-record \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/PSY/06AddOrRep.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/PSY/07BQSR.bam \
+    --bqsr-recal-file /data/project/mRCC/analysis/bulk_vcf/outs/PSY/06Recal.table
+
+  gatk --java-options "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
+            -XX:+PrintGCDetails -Xloggc:gc_log.log \
+            -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Xms3000m" \
+    ApplyBQSR \
+    --add-output-sam-program-record \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/YKH/06AddOrRep.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/YKH/07BQSR.bam \
+    --bqsr-recal-file /data/project/mRCC/analysis/bulk_vcf/outs/YKH/06Recal.table

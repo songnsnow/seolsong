@@ -1,0 +1,243 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : load dsb normalized data
+# author      : songnsnow
+# date        : 240702
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# load libraries
+library(Seurat)
+# library(SeuratData)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+# library(ragg)
+
+dsb.1 <- readRDS('/data/project/mRCC_HWS/analysis/sc_dsb/output/dsb_p1.rds')
+dsb.2 <- readRDS('/data/project/mRCC_HWS/analysis/sc_dsb/output/dsb_p2.rds')
+dsb.3 <- readRDS('/data/project/mRCC_HWS/analysis/sc_dsb/output/dsb_p3.rds')
+
+# add souporcell labels ==============================================================================
+# B1 ###############################################
+soup_path <- '/data/project/mRCC_HWS/analysis/sc_demultiplex/souporcell/s1_clusters.tsv'   # SouporCell results PATH
+fn <- 'b1'  # filename
+
+### add souporcell clusters
+soup_csv <- read.csv(soup_path, header=TRUE, sep='')
+soup_df <- as.data.frame(soup_csv)
+soup_ass <- data.frame(soup_df[,1:3])   # only get assigned clusters info by cell barcode
+
+colnames(soup_ass) <- c('cell','status', 'cluster')
+rownames(soup_ass) <- soup_ass$cell
+soup_ass$cell <- NULL
+dsb.1 <- AddMetaData(dsb.1, metadata=soup_ass)
+
+df <- soup_ass
+df$status <- NULL
+df$cluster <- as.character(df$cluster)
+
+### add metadata 
+uCN <- c('RCC_A1','RCC_A2','RCC_B1','RCC_B2','RCC_B3')
+dCN <- c('RCC_C1','RCC_C2','RCC_D1','RCC_D2','RCC_E1','RCC_E2')
+
+for (i in 1:nrow(df)){
+  if (df[i,"cluster"] == '0'){
+    id <- 'RCC_A1'
+  }
+  else if (df[i,"cluster"] == '1'){
+    id <- 'RCC_B1'
+  }
+  else if (df[i,"cluster"] == '2'){
+    id <-'RCC_C1'
+  }
+  else if (df[i,"cluster"] == '3'){
+    id <- 'RCC_D1'
+  }
+  else {
+    id <- 'NA'
+  }
+  df[i,'id'] <- id
+}
+
+# Add RCC subgroup
+for (i in 1:nrow(df)) {
+  if(df[i, "id"] %in% uCN) {
+    subgroup <- "uCN"
+  }
+  else if (df[i, "id"] %in% dCN) {
+    subgroup <- "dCN"
+  }
+  else {
+    subgroup <- "NA"
+  }
+  df[i, "subgroup"]  <- subgroup
+}
+
+df$cluster <- NULL
+
+dsb.1 <- AddMetaData(dsb.1, metadata=df)
+columns.to.remove <- c('status','cluster')
+for(i in columns.to.remove) {
+  dsb.1[[i]] <- NULL
+}
+
+# add original barcode data
+dsb.1$orig.bc <- rownames(dsb.1@meta.data)
+
+saveRDS(dsb.1,paste('rds/01-1_',fn,'.rds',sep=''))
+
+
+# B2 ###############################################
+# clean up
+dsb.2 <- DietSeurat(dsb.2, layers = c('counts'),
+  features = NULL,
+  assays = c('RNA','CITE'),
+  dimreducs = 'umap',
+  graphs = NULL,
+  misc = TRUE)
+dsb.2
+
+colnames(dsb.2@meta.data)
+columns.to.remove <- colnames(dsb.2@meta.data[,11:18])
+for(i in columns.to.remove) {
+  dsb.2[[i]] <- NULL
+}
+colnames(dsb.2@meta.data)
+
+# add souporcell metadata
+soup_path <- '/data/project/mRCC_HWS/analysis/sc_demultiplex/souporcell/s2_clusters.tsv'   # SouporCell results PATH
+fn <- 'b2'  # filename
+
+### add souporcell clusters
+soup_csv <- read.csv(soup_path, header=TRUE, sep='')
+soup_df <- as.data.frame(soup_csv)
+soup_ass <- data.frame(soup_df[,1:3])   # only get assigned clusters info by cell barcode
+
+colnames(soup_ass) <- c('cell','status', 'cluster')
+rownames(soup_ass) <- soup_ass$cell
+soup_ass$cell <- NULL
+dt.2 <- AddMetaData(dt.2, metadata=soup_ass)
+
+df <- soup_ass
+df$status <- NULL
+df$cluster <- as.character(df$cluster)
+
+### add metadata 
+uCN <- c('RCC_A1','RCC_A2','RCC_B1','RCC_B2','RCC_B3')
+dCN <- c('RCC_C1','RCC_C2','RCC_D1','RCC_D2','RCC_E1','RCC_E2')
+
+# add donor id
+for (i in 1:nrow(df)){
+  if (df[i,"cluster"] == '0'){
+    id <- 'RCC_A2'
+  }
+  else if (df[i,"cluster"] == '1'){
+    id <- 'RCC_B2'
+  }
+  else if (df[i,"cluster"] == '2'){
+    id <-'RCC_C2'
+  }
+  else if (df[i,"cluster"] == '3'){
+    id <- 'RCC_E1'
+  }
+  else {
+    id <- 'NA'
+  }
+  df[i,'id'] <- id
+}
+
+# Add RCC subgroup
+for (i in 1:nrow(df)) {
+  if(df[i, "id"] %in% uCN) {
+    subgroup <- "uCN"
+  }
+  else if (df[i, "id"] %in% dCN) {
+    subgroup <- "dCN"
+  }
+  else {
+    subgroup <- "NA"
+  }
+  df[i, "subgroup"]  <- subgroup
+}
+
+df$cluster <- NULL
+
+dsb.2 <- AddMetaData(dsb.2, metadata=df)
+columns.to.remove <- c('status','cluster')
+for(i in columns.to.remove) {
+  dsb.2[[i]] <- NULL
+}
+
+# add original barcode data
+dsb.2$orig.bc <- rownames(dsb.2@meta.data)
+
+saveRDS(dsb.2,paste('rds/01-1_',fn,'.rds',sep=''))
+
+
+# B3 ###############################################
+soup_path <- '/data/project/mRCC_HWS/analysis/sc_demultiplex/souporcell/s3_clusters.tsv'   # SouporCell results PATH
+fn <- 'b3'  # filename
+
+### add souporcell clusters
+soup_csv <- read.csv(soup_path, header=TRUE, sep='')
+soup_df <- as.data.frame(soup_csv)
+soup_ass <- data.frame(soup_df[,1:3])   # only get assigned clusters info by cell barcode
+
+colnames(soup_ass) <- c('cell','status', 'cluster')
+rownames(soup_ass) <- soup_ass$cell
+soup_ass$cell <- NULL
+dsb.3 <- AddMetaData(dsb.3, metadata=soup_ass)
+
+df <- soup_ass
+df$status <- NULL
+df$cluster <- as.character(df$cluster)
+
+### add metadata 
+uCN <- c('RCC_A1','RCC_A2','RCC_B1','RCC_B2','RCC_B3')
+dCN <- c('RCC_C1','RCC_C2','RCC_D1','RCC_D2','RCC_E1','RCC_E2')
+
+for (i in 1:nrow(df)){
+  if (df[i,"cluster"] == '0'){
+    id <- 'RCC_B3'
+  }
+  else if (df[i,"cluster"] == '1'){
+    id <- 'RCC_D2'
+  }
+  else if (df[i,"cluster"] == '2'){
+    id <-'RCC_E2'
+  }
+  else {
+    id <- 'NA'
+  }
+  df[i,'id'] <- id
+}
+
+# Add RCC subgroup
+for (i in 1:nrow(df)) {
+  if(df[i, "id"] %in% uCN) {
+    subgroup <- "uCN"
+  }
+  else if (df[i, "id"] %in% dCN) {
+    subgroup <- "dCN"
+  }
+  else {
+    subgroup <- "NA"
+  }
+  df[i, "subgroup"]  <- subgroup
+}
+
+df$cluster <- NULL
+
+dsb.3 <- AddMetaData(dsb.3, metadata=df)
+columns.to.remove <- c('status','cluster')
+for(i in columns.to.remove) {
+  dsb.3[[i]] <- NULL
+}
+
+# add original barcode data
+dsb.3$orig.bc <- rownames(dsb.3@meta.data)
+
+saveRDS(dsb.3,paste('rds/01-1_',fn,'.rds',sep=''))

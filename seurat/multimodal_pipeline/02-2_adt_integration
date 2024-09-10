@@ -1,0 +1,66 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : adt integration w/ harmony to remove batch effect
+# author      : songnsnow
+# date        : 240702
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load packages
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+
+dt <- readRDS('rds/02-1.rds')
+dt[["CITE"]] <- as(object = dt[["CITE"]], Class = "Assay5")
+
+# ADT processing & integration --------------------------------------------------------------------------------
+# Join layers
+DefaultAssay(dt) <- 'CITE'
+dt[["CITE"]] <- JoinLayers(dt[["CITE"]])
+dt[["CITE"]] <- split(dt[["CITE"]], f = dt$batch)
+
+# 1st processing
+VariableFeatures(dt) <- rownames(dt[["CITE"]])
+dt <- dt %>% 
+  ScaleData(assay = 'CITE') %>% 
+  RunPCA(reduction.name = 'cite_pca', assay='CITE',verbose = FALSE) %>%
+  RunUMAP(dims = 1:50, reduction = "cite_pca", reduction.name = "cite_umap.unint")
+
+DimPlot(dt, reduction = "cite_umap.unint", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/02-2_cite_unint.png',width=15, height=10,scale=1.5)
+
+# Harmony integration to remove batch effects
+dt <- IntegrateLayers(
+  object = dt,
+  method = HarmonyIntegration,
+  features = rownames(dt[["CITE"]]),
+  assay = 'CITE',
+  orig.reduction = "cite_pca",
+  new.reduction = 'cite_harm', 
+  verbose = F
+)
+
+# Re-join layers after integration
+dt[["CITE"]] <- JoinLayers(dt[["CITE"]])
+
+# Continue processing - dim:30, res:1
+prots = rownames(dt@assays$CITE)[1:130] ## Define proteins to use in clustering (non-isotype controls)
+dt <- FindNeighbors(dt, assay = 'CITE', reduction = "cite_harm",
+                          features = prots, k.param = 30, 
+                          verbose = TRUE) %>%
+      FindClusters(resolution = 1, assay = 'CITE',
+                         algorithm = 3, 
+                         cluster.name = "cite_clst.int",
+                         graph.name = 'CITE_snn', 
+                         verbose = TRUE) %>%
+      RunUMAP(assay = "CITE", reduction = "cite_harm", features = prots,
+                    seed.use = 1990, min.dist = 0.2, n.neighbors = 30,
+                    verbose = TRUE, reduction.name = "cite_umap.int")
+
+# Plotting
+DimPlot(dt, reduction = "cite_umap.int", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/02-2_cite_int.png',width=15, height=10,scale=1.5)
+
+saveRDS(dt,'rds/02-2.rds')

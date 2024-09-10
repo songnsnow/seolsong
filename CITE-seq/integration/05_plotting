@@ -1,0 +1,66 @@
+# protein vs rna exp comparison --------------------------------------------------------------
+# BiocManager::install("ComplexHeatmap")
+library(ComplexHeatmap)
+
+# create multimodal heatmap 
+vf = VariableFeatures(s,assay = "RNA")
+
+# find marker genes for the joint clusters 
+Idents(s) = "dsb_knn_res.1.5"
+DefaultAssay(s)  = "RNA"
+rnade = FindAllMarkers(s, features = vf, only.pos = TRUE, verbose = FALSE)
+gene_plot = rnade %>% 
+  dplyr::filter(avg_log2FC > 1 ) %>%  
+  dplyr::group_by(cluster) %>% 
+  dplyr::top_n(3) %$% gene %>% unique 
+
+
+cite_data = GetAssayData(s,slot = 'data',assay = 'CITE') %>% t()
+rna_subset = GetAssayData(s,assay = 'RNA',slot = 'data')[gene_plot, ] %>%
+  as.data.frame() %>% 
+  t() %>% 
+  as.matrix()
+
+# combine into dataframe 
+d = cbind(s@meta.data, cite_data, rna_subset) 
+
+# calculate the median protein expression per cluster
+dat_plot = d %>% 
+  dplyr::group_by(dsb_knn_res.1.5) %>% 
+  dplyr::summarize_at(.vars = c(prots, gene_plot), .funs = median) %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("dsb_knn_res.1.5") 
+
+
+# ----------------------------------------------------------------------------------
+
+# make a combined plot 
+suppressMessages(library(ComplexHeatmap)); ht_opt$message = FALSE
+
+# protein heatmap 
+prot_col = circlize::colorRamp2(breaks = seq(-1,25, by = 1), 
+                                colors = viridis::viridis(n = 27, option = "B"))
+p1 = Heatmap(t(dat_plot)[prots, ], 
+             name = "protein", 
+             col = prot_col, 
+             use_raster = T,
+             row_names_gp = gpar(color = "black", fontsize = 5)
+)
+
+# mRNA heatmap 
+mrna = t(dat_plot)[gene_plot, ]
+rna_col = circlize::colorRamp2(breaks = c(-2,-1,0,1,2), 
+                               colors = colorspace::diverge_hsv(n = 5))
+p2 = Heatmap(t(scale(t(mrna))), 
+             name = "mRNA", 
+             col = rna_col,
+             use_raster = T, 
+             clustering_method_columns = 'average',
+             column_names_gp = gpar(color = "black", fontsize = 7), 
+             row_names_gp = gpar(color = "black", fontsize = 5))
+
+
+# combine heatmaps 
+ht_list = p1 %v% p2
+draw(ht_list)
+ggsave(paste('figures/05_',pool,'_combined_pheatmap.png',sep=''),plot=ht_list,width=6, height=12, scale=2)

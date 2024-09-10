@@ -1,0 +1,30 @@
+# in env: gatk
+
+# install GATK
+conda install -c bioconda gatk4
+
+#SplitNCigarReads------------------------------------------------------------------
+gatk SplitNCigarReads \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/CKS/04MarkDup.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/CKS/05Split.bam
+
+gatk SplitNCigarReads \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/KKH/04MarkDup.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/KKH/05Split.bam
+
+gatk SplitNCigarReads \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/PJY/04MarkDup.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/PJY/05Split.bam
+
+gatk SplitNCigarReads \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/PSY/04MarkDup.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/PSY/05Split.bam
+
+gatk SplitNCigarReads \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/YKH/04MarkDup.bam \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/YKH/05Split.bam

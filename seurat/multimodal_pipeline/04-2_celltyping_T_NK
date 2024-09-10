@@ -1,0 +1,156 @@
+#/usr/bin/env seu5
+#-----------------------------------------------------------------------
+# description : multimodal integrated data - T/NK celltyping
+# author      : songnsnow
+# date        : 240711
+# notes       : 
+#-----------------------------------------------------------------------
+# set working directory
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_multimodal")
+
+# load libraries
+library(Seurat)
+library(dplyr)
+library(SeuratData)
+library(ggplot2)
+library(patchwork)
+
+# load data
+dt <- readRDS('rds/02-1.rds')
+save <- dt
+
+# get top 50 markers ========================================================================
+dt_mks <- FindAllMarkers(dt, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+mks_tbl <- dt_mks %>%
+    group_by(cluster) %>%
+    slice_max(n = 50, order_by = avg_log2FC)
+write.csv(mks_tbl,paste('02-2_top50_markers.csv',sep=''))
+# ===========================================================================================
+
+# ===========================================================================================
+# manual markers ---------------------------------------------------------------------------
+# general -----------------------------------------------------------------------------
+# plot markers - dotplot
+general_T <- c('CD3D','CD3E','CD3G','CD8A','CD8B','CD4')
+reg_T <-c('FOXP3')
+general_nk <- c('NCAM1','FCGR3A','GZMB','KLRD1','KLRC1','KLRK1','KLRB1','CD69','IL2RA')
+# cytotoxic <- c('GZMA','GZMB','GZMK','GZMM','PRF1','NKG7')
+mks <- c(general_T,reg_T,general_nk,'KLRG1')
+dp <- DotPlot(object = dt, features = mks, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip() + theme_classic()
+ggsave('figures/04-2_dotplot_T_NK.jpg',plot=dp,width=3.5, height=2, scale=2)
+
+FeaturePlot(dt, features = mks, reduction='wnn.umap')
+ggsave('figures/02-2_ftplot_T_NK.jpg',width=10, height=10, scale=2)
+
+mks <- c('CD8A','CD8B','CD4','CD3E','FCGR3A','NCAM1','TRGC1','SLC4A10')
+FeaturePlot(dt, features = mks, ncol=4, reduction='wnn.umap')
+ggsave('figures/02-2_ftplot_T_cd8or4.jpg',width=10, height=5, scale=2)
+
+dt_T <- subset(dt, idents = c('1','3','4','13','16'),invert=TRUE)
+Idents(dt_T) <- 'seurat_clusters'
+mks <- c('CD8A','CD8B','CD4','FCGR3A','NCAM1')
+vp <- VlnPlot(object = dt_T,features = mks, ncol=2)
+ggsave('figures/02-2_vlnplot_T_cd8or4.jpg',plot=vp,width=10, height=6, scale=2)
+
+CD4T_clsts <- c('0','2','7','14','16','11','9','15')
+Tfh <- c('CXCR5','ICOS','BTLA')
+Th1 <- c('IFNG','CCR1','IL12RB2','IL27RA','IFNGR2','CCR5','CXCR3','STAT4')
+Th2 <- c('CCR8','CXCR4','GATA3','IRF4')
+Th9 <- c('TGFBR3')
+Th17 <- c('CCR6','RORA')
+Th22 <-c('CCR10')
+mks <- c(general_T,reg_T,Tfh,Th1,Th2,Th9,Th17,'LEF1','FHIT',Th22)
+dp <- DotPlot(object = dt, features = rev(mks), idents = CD4T_clsts, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip() + theme_classic()
+ggsave('figures/02-2_dotplot_T_subsets.jpg',plot=dp,width=2, height=3, scale=2)
+
+CD4T_clsts <- c('0','2','7','16','11','9','15')
+Tn <- c('SELL','LEF1','TCF7','CCR7','FHIT')
+Tcm <- c('IL7R','CD40LG')
+Tem <- c('JUN','JUNB','FOS','FOSB','GPR183','GZMK')
+Tcyto <- c('GZMA','GZMB','IFNG','PRF1','NKG7','CCL4','CCL5','CD160')
+Treg <- c('IL2RA','FOXP3','TNFRSF4','TNFRSF9','TNFRSF18','CTLA4','TIGIT')
+mks <- c('CD4',Tn, Tcm, Tem, Tcyto, Treg)
+dp <- DotPlot(object = dt, features = rev(mks), idents = CD4T_clsts, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip() + theme_classic()
+ggsave('figures/02-2_dotplot_CD4T_phen.jpg',plot=dp,width=2, height=3, scale=2)
+
+CD8T_clsts <- c('5','6','8','11','13','15','18','19')
+Tn <- c('SELL','LEF1','TCF7','CCR7')
+Tcm <- c('IL7R','ANXA1','JUN','JUNB','FOS','FOSB','GPR183')
+Tem <- c('GZMK','IFNG','CCL4','CCL5','EOMES','GZMA')
+Temra <- c('GZMB','GNLY','FGFBP2','CX3CR1','SPON2','NKG7','PRF1')
+gdT <- c('TRGC1','TRDV2','TRDV1','TRDV3')
+dnT <- c('PTPN3', 'MIR4422HG', 'NUCB2', 'CAV1', 'DTHD1',  'MYB', 'FXYD2')
+mks <- c('CD3D','CD3E','CD8A','CD8B','FCGR3A','NCAM1',gdT,Tn, Tcm, Tem, Temra, Treg, dnT)
+dp <- DotPlot(object = dt, features = rev(mks), idents = CD8T_clsts, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip() + theme_classic()
+ggsave('figures/02-2_dotplot_CD8T_phen.jpg',plot=dp,width=2.5, height=5, scale=2)
+
+
+
+adt_markers <- c("Hu.CD4-RPA.T4", "Hu.CD8", "Hu.CD45RA", "Hu.CD45RO")
+FeaturePlot(dt, features = adt_markers, reduction = "wnn.umap", min.cutoff = "q05", max.cutoff = "q95", ncol = 4)
+ggsave('figures/02-2_adt_markers_T.png',width=10, height=5,scale=1.5)
+# ===========================================================================================
+
+# markers plot ===============================================================================
+# rna --------------------------------------------------------------------------------------------
+# signature genes dotplot
+DefaultAssay(dt) <- 'RNA'
+Idents(dt) <- 'seurat_clusters'
+mks <- rna_general
+dp <- DotPlot(object = dt, features = mks, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip() + theme_classic()
+ggsave('figures/01-1_dp_general_rna_mks.jpg',plot=dp,width=7, height=4, scale=2)
+
+# adt --------------------------------------------------------------------------------------------
+dt_adt <- dt
+DefaultAssay(dt_adt) <- 'CITE'
+Idents(dt_adt) <- 'seurat_clusters'
+mks <- adt_general
+dp <- DotPlot(object = dt_adt, features = mks, cluster.idents = TRUE) + theme(axis.text.x=element_text(angle=90)) + coord_flip() + theme_classic()
+ggsave('figures/01-1_dp_general_adt_mks.jpg',plot=dp,width=7, height=4, scale=2)
+
+# together -----------------------------------------------------------------------------------
+DefaultAssay(dt) <- 'Protein'
+Idents(dt) <- 'seurat_clusters'
+adt_markers <- c("Hu.CD3-UCHT1", "Hu.CD4-RPA.T4", "Hu.CD8", "Hu.CD16", "Hu.CD56", "Hu.CD14-M5E2", "Hu.CD20-2H7", "Hu.CD1c")
+# Hu.CD183
+rna_markers <- c("CD3D", "CD4", "CD8A", "FCGR3A", "NCAM1", "CD14", "MS4A1", "CD1C")
+fts <- c(adt_markers,rna_markers)
+FeaturePlot(dt, features = fts, reduction = "wnn.umap", min.cutoff = "q05", max.cutoff = "q95", ncol = 8)
+ggsave('figures/02-2_fp_multimodal_markers.png',width=20, height=5,scale=1.5)
+# ==============================================================================================
+
+# assign cell types (level 2) ==================================================================
+Idents(dt) <- 'seurat_clusters'
+id <- c("CD8+ Temra",
+        "CD16bright NK", "CD4+ Tn", "CD16bright NK", "CD16bright NK", "CD8+ CTL", 
+        "CD4+ Tcm", "CD4+ Th17", "CD4+ Th22", "CD4+ Tcm", "CD8+ Temra",
+        "CD4+ Tfh", "NKT", "CD8+ Tn", "CD4+ Tn", "CD8+ Tem", "CD16bright NK", 
+        "CD4+ Treg", "CD4+ Tcm", "CD8+ MAIT", "gdT",
+        "CD16dim NK", "CD8+ Trm", "CD4+ Tem", "CD4+ MAIT", "CD4+ Tem")
+
+lbd <- dt
+names(id) <- levels(lbd)
+dt <- RenameIdents(lbd, id)
+dt$celltype.l2 <- dt@active.ident
+
+# save file
+saveRDS(dt, 'rds/04-2.rds')
+
+# plotting
+DimPlot(dt, reduction = "wnn.umap", group.by='celltype.l2', label=TRUE, repel=TRUE) + NoLegend()
+ggsave('figures/04-2_celltyped.png',width=5, height=5,scale=1.5)
+# ===============================================================================================
+
+# correct labels 240830 ------------------------
+dt <- readRDS('rds/04-2.rds')
+# new <- readRDS('rds/01-3.rds')
+dt$subgroup <- new$subgroup
+dt$subgroup_2 <- new$subgroup_2
+dt$timepoint <- new$timepoint
+
+table(dt$subgroup,dt$subgroup_2)    #check
+saveRDS(dt, 'rds/04-2.rds')
+# -----------------------------------------------
+
+df <- dt@meta.data[, c("id","subgroup","subgroup_2","timepoint","donor"), drop = FALSE]
+write.csv(df, "04-2_metadata.csv")

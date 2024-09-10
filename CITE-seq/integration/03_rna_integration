@@ -1,0 +1,149 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : adt integration w/ harmony (before adt integration)
+# author      : songnsnow
+# date        : 240425 -> 240611
+# notes       : 
+#-----------------------------------------------------------------------
+
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_adt")   # set working directory
+getwd()     # check
+
+# load libraries
+library(Seurat)
+library(dplyr)
+library(SeuratData)
+library(ggplot2)
+library(patchwork)
+library(ragg)
+
+dt <- readRDS('rds/01_rcc.rds')
+filt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat/rds/06-1-2_30_2.rds')
+filt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat/rds/06-1.rds')
+
+# remove RNA
+head(rownames(filt@meta.data))
+filt_bc <- rownames(filt@meta.data)
+colnames(dt@meta.data)
+colnames(filt@meta.data)
+dt$celltype.l1 <- filt$celltype.l1
+dt$celltype.l2 <- filt$celltype.l2
+
+df <- dt[[11:12]]
+df$bc <- rownames(df)
+head(df,1)
+for (i in 1:nrow(df)) {
+  if(df[i, "bc"] %in% filt_bc) {
+    cell <- "keep"
+  }
+  else {
+    cell <- "filter"
+  }
+  df[i, "bc"]  <- cell
+}
+df$id <- NULL
+df$subgroup <- NULL
+# df$bc <- NULL
+
+dt <- AddMetaData(dt, metadata=df)
+Idents(dt) <- 'bc'
+dt <- subset(dt, idents = c('keep')) # 94307
+save1 <- dt
+
+# RNA processing & integration --------------------------------------------------------------------------------
+# join layers
+DefaultAssay(dt) <- 'RNA'
+dt[["RNA"]] <- JoinLayers(dt[["RNA"]])
+dt[["RNA"]] <- split(dt[["RNA"]], f = dt$batch)
+save2 <- dt
+
+# dt <- NormalizeData(dt) %>%
+#   FindVariableFeatures() %>%
+#   ScaleData() %>%
+#   RunPCA(npcs = 50, verbose = F) %>%
+#   RunUMAP(dims = 1:50, reduction = "pca", reduction.name = "umap.unintegrated")
+# save1 <- dt
+
+dt <- NormalizeData(dt, normalization.method = 'LogNormalize', margin = 2, verbose=TRUE) %>%
+      FindVariableFeatures() %>%
+      ScaleData(assay='RNA', verbose=TRUE) %>%
+      RunPCA(npcs = 50, reduction.name = 'rna_pca', assay='RNA', verbose=TRUE) %>%
+      RunUMAP(dims = 1:50, reduction = "rna_pca", reduction.name = "rna_umap.unintegrated", verbose=TRUE)
+save3 <- dt
+
+DimPlot(dt, reduction = "rna_umap.unintegrated", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/03_rna_unitg.png',width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.unintegrated", split.by = "batch")
+ggsave('figures/03_rna_unitg_batch.png',width=15, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.unintegrated", split.by = "id", ncol=4)
+ggsave('figures/03_rna_unitg_id.png',width=5, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.unintegrated", split.by = "donor", ncol=4)
+ggsave('figures/03_rna_unitg_donor.png',width=10, height=15,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.unintegrated", split.by = "timepoint", ncol=4)
+ggsave('figures/03_rna_unitg_timepoint.png',width=10, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.unintegrated", split.by = "subgroup", ncol=4)
+ggsave('figures/03_rna_unitg_subgroup.png',width=10, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.unintegrated", split.by = "subgroup_2", ncol=4)
+ggsave('figures/03_rna_unitg_subgroup2.png',width=10, height=5,scale=1.5)
+
+
+# harmony
+# install.packages('harmony')
+dt <- IntegrateLayers(
+  object = dt,
+  method = HarmonyIntegration,
+  features = rownames(dt[["RNA"]]),
+  assay = 'RNA',
+  orig.reduction = "rna_pca",
+  new.reduction = 'rna_harmony', 
+  verbose = T
+)
+
+# re-join layers after integration
+dt[["RNA"]] <- JoinLayers(dt[["RNA"]])
+save4 <- dt
+
+# continue processing -----------------------------------------------------------------------------------------
+dim_value <- '50'
+res_value <- '2'
+
+dt <- FindNeighbors(dt, dims = 1:50, assay = 'RNA', reduction = "rna_harmony")
+dt <- FindClusters(dt, resolution = 2, cluster.name = "rna_itg.clsts", graph.name = 'RNA_snn')
+dt <- RunUMAP(dt, dims = 1:50, assay = "RNA", reduction = "rna_harmony", reduction.name = "rna_umap.itg")
+save5 <- dt
+
+# plotting
+DimPlot(dt, reduction = "rna_umap.itg", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave(paste('figures/03_',dim_value,'_',res_value,'_rna_itg.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.itg", group.by = "seurat_clusters", label=TRUE)
+ggsave(paste('figures/03_',dim_value,'_',res_value,'_rna_itg_clusters.png',sep=''),width=10, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.itg", split.by = "batch")
+ggsave(paste('figures/03_',dim_value,'_',res_value,'_rna_itg_batch.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.itg", split.by = "id", ncol=4)
+ggsave(paste('figures/03_',dim_value,'_',res_value,'_rna_itg_id.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.itg", split.by = "donor", ncol=4)
+ggsave(paste('figures/03_',dim_value,'_',res_value,'_rna_itg_donor.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.itg", split.by = "timepoint", ncol=4)
+ggsave(paste('figures/03_',dim_value,'_',res_value,'_rna_itg_timepoint.png',sep=''),width=15, height=10,scale=1.5)
+
+DimPlot(dt, reduction = "rna_umap.itg", split.by = "subgroup", ncol=4)
+ggsave(paste('figures/03_',dim_value,'_',res_value,'_rna_itg_subgroup.png',sep=''),width=15, height=10,scale=1.5)
+
+levels(dt$subgroup_2) <- c("uCN_Init","uCN_CN","uCN_Nivo/ipi_2","dCN_Init","dCN_Nivo/ipi_1","dCN_Nivo_maint")
+DimPlot(dt, reduction = "rna_umap.itg", split.by = "subgroup_2", ncol=3)
+ggsave(paste('figures/03_',dim_value,'_',res_value,'_rna_itg_subgroup2.png',sep=''),width=15, height=15,scale=1.5)
+
+
+saveRDS(save5,paste('rds/03_',dim_value,'_',res_value,'_rna_itg.rds',sep=''))
+rna_save <- save5

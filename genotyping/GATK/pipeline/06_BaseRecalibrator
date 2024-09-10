@@ -1,0 +1,104 @@
+# in env: picard
+
+# BaseRecalibrator------------------------------------------------------------------
+picard AddOrReplaceReadGroups \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/05Split.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/06AddOrRep.bam \
+    RGID=1 \
+    RGLB=lib1 \
+    RGPL=illumina \
+    RGPU=unit1 \
+    RGSM=CKS
+
+picard AddOrReplaceReadGroups \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/05Split.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/06AddOrRep.bam \
+    RGID=2 \
+    RGLB=lib1 \
+    RGPL=illumina \
+    RGPU=unit1 \
+    RGSM=KKH
+
+picard AddOrReplaceReadGroups \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/05Split.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/06AddOrRep.bam \
+    RGID=3 \
+    RGLB=lib1 \
+    RGPL=illumina \
+    RGPU=unit1 \
+    RGSM=PJY
+
+picard AddOrReplaceReadGroups \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/05Split.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/06AddOrRep.bam \
+    RGID=4 \
+    RGLB=lib1 \
+    RGPL=illumina \
+    RGPU=unit1 \
+    RGSM=PSY
+
+picard AddOrReplaceReadGroups \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/05Split.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/06AddOrRep.bam \
+    RGID=5 \
+    RGLB=lib1 \
+    RGPL=illumina \
+    RGPU=unit1 \
+    RGSM=YKH
+
+
+# ------------------------------------------------------------------------------------------
+gatk --java-options "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -XX:+PrintFlagsFinal \
+            -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintGCDetails \
+            -Xloggc:gc_log.log -Xms4000m" \
+    BaseRecalibrator \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/CKS/06AddOrRep.bam \
+    --use-original-qualities \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/CKS/06Recal.table
+
+gatk --java-options "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -XX:+PrintFlagsFinal \
+            -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintGCDetails \
+            -Xloggc:gc_log.log -Xms4000m" \
+    BaseRecalibrator \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/KKH/06AddOrRep.bam \
+    --use-original-qualities \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/KKH/06Recal.table
+
+gatk --java-options "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -XX:+PrintFlagsFinal \
+            -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintGCDetails \
+            -Xloggc:gc_log.log -Xms4000m" \
+    BaseRecalibrator \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/PJY/06AddOrRep.bam \
+    --use-original-qualities \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/PJY/06Recal.table
+
+gatk --java-options "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -XX:+PrintFlagsFinal \
+            -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintGCDetails \
+            -Xloggc:gc_log.log -Xms4000m" \
+    BaseRecalibrator \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/PSY/06AddOrRep.bam \
+    --use-original-qualities \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/PSY/06Recal.table
+
+gatk --java-options "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -XX:+PrintFlagsFinal \
+            -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintGCDetails \
+            -Xloggc:gc_log.log -Xms4000m" \
+    BaseRecalibrator \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    -I /data/project/mRCC/analysis/bulk_vcf/outs/YKH/06AddOrRep.bam \
+    --use-original-qualities \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.dbsnp138.vcf \
+    -known-sites /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
+    -O /data/project/mRCC/analysis/bulk_vcf/outs/YKH/06Recal.table

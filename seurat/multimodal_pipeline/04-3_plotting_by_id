@@ -1,0 +1,90 @@
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+
+# Load necessary libraries
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(viridis)
+
+# Load data
+dt <- readRDS('rds/04-2.rds')
+save <- dt
+Idents(dt) <- 'celltype.l2'
+dt <- subset(dt, ident=c('CD16bright NK', 'CD16dim NK'), invert=TRUE)
+
+# Define the desired order for celltype.l2
+# desired_order <- c("CD4+ Tn", "CD4+ Tcm", "CD4+ Th17", "CD4+ Th22",
+#                    "CD4+ Tfh", "CD4+ Treg", "CD4+ Tem", "CD4+ MAIT", "gdT",
+#                    "CD8+ Temra", "CD8+ CTL", "CD8+ Tn", "CD8+ Tem",
+#                    "CD8+ MAIT", "CD8+ Trm", "NKT")
+
+# Convert celltype.l2 to a factor with the specified order
+dt@meta.data$celltype.l2 <- factor(dt@meta.data$celltype.l2, levels = desired_order)
+
+# Aggregate data to get proportions of celltype.l2 by id
+data <- dt@meta.data %>%
+  group_by(id, celltype.l2) %>%
+  summarise(count = n()) %>%
+  mutate(proportion = count / sum(count)) %>%
+  arrange(id, desc(proportion)) %>%
+  ungroup()
+
+# Function to get top 3 labels
+top_3_labels <- function(df) {
+  top3 <- head(df[order(-df$proportion), ], 3)
+  top3$label <- sprintf("%s\n%.1f%%", top3$celltype.l2, top3$proportion * 100)
+  return(top3)
+}
+
+# Custom color palette inspired by Set3
+custom_palette <- c(
+  "#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3", "#fdb462", 
+  "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd", "#ccebc5", "#ffed6f",
+  "#fdb462", "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd", "#ccebc5"
+)
+
+# Take the first 18 colors from the custom palette
+palette_18 <- custom_palette[1:18]
+
+# Order data within each id from biggest to smallest proportion
+data <- data %>%
+  arrange(id, desc(proportion))
+
+# Create pie charts for each id
+pie_plots <- lapply(unique(data$id), function(id) {
+  subset_data <- data[data$id == id, ]
+  
+  # Pie chart for each id
+  p <- ggplot(subset_data, aes(x = "", y = proportion, fill = reorder(celltype.l2, proportion))) +
+    geom_bar(stat = "identity", width = 1) +
+    coord_polar(theta = "y") +
+    labs(title = paste("ID:", id), y = "Proportion") +
+    scale_fill_manual(values = palette_18) +  # Using custom palette with 18 colors
+    theme_void() +
+    theme(panel.background = element_rect(fill = "transparent", color = NA),  # Transparent panel background
+          plot.background = element_rect(fill = "transparent", color = NA),    # Transparent plot background
+          legend.position = "none")
+  
+  # Labels for top 3 proportions
+  top3_data <- top_3_labels(subset_data)
+  
+  p <- p +
+    geom_text(data = top3_data, aes(label = label), position = position_stack(vjust = 0.5), size = 3)
+  
+  return(p)
+})
+
+# Arrange plots using patchwork
+row1 <- wrap_plots(pie_plots[[1]], pie_plots[[2]], ncol = 2)
+row2 <- wrap_plots(pie_plots[[3]], pie_plots[[4]], pie_plots[[5]], ncol = 3)
+row3 <- wrap_plots(pie_plots[[6]], pie_plots[[7]], ncol = 2)
+row4 <- wrap_plots(pie_plots[[8]], pie_plots[[9]], ncol = 2)
+row5 <- wrap_plots(pie_plots[[10]], pie_plots[[11]], ncol = 2)
+
+final_plot <- row1 / row2 / row3 / row4 / row5
+
+# Print the final combined plot
+print(final_plot)
+
+# Save the plot to a file
+ggsave("figures/04-3_celltype_proportions_by_id.png", plot = final_plot, width = 8, height = 12)

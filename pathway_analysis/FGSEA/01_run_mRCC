@@ -1,0 +1,497 @@
+#/usr/bin/env fgsea
+#-----------------------------------------------------------------------
+# description : 
+# author      : songnsnow
+# date        : 240826
+# notes       : 
+#-----------------------------------------------------------------------
+#library loading -------------------------------------------------------
+library(generics)
+library(Seurat)
+library(devtools) 
+library(presto)
+library(msigdbr)
+library(fgsea) 
+library(dplyr) 
+library(tidyverse)
+library(tidyr) 
+library(tibble) 
+library(data.table)
+library(ggplot2)
+library(reshape2) # melt 함수 사용을 위해
+
+# Start analysis=====================================================================
+setwd('/home/ubuntu/analysis/fgsea')
+
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/04-2.rds')
+df <- read.csv("/home/ubuntu/analysis/scRepertoire/data/04-2_metadata.csv", row.names = 1)
+dt <- AddMetaData(dt, metadata = df)
+saveRDS(dt,'/home/ubuntu/analysis/scRepertoire/data/04-2.rds')
+
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/03-1.rds')
+
+
+#"H"로  Hallmark gene set을 불러 옵니다.
+m_df<- msigdbr(species = "Homo sapiens", category = "H") 
+#불러온 Gene Set을 정리해 줍니다.
+fgsea_sets <- m_df %>% split(x = .$gene_symbol, f = .$gs_name)
+
+
+#####################################################################################################
+DefaultAssay(dt) <- 'RNA'
+Idents(dt) <- 'subgroup'
+
+# Wilcox test를 사용하여 차별 발현 유전자 계산
+myData.cluster <- wilcoxauc(dt, "subgroup", groups_use = c('uCN', 'dCN'))
+
+# 각 그룹에 대해 랭크 점수 생성
+rank_data <- function(group_name) {
+  myData.cluster %>%
+    dplyr::filter(group == group_name) %>%
+    arrange(desc(auc)) %>%
+    dplyr::select(feature, auc) %>%
+    deframe()
+}
+
+ranks_uCN <- rank_data("uCN")
+ranks_dCN <- rank_data("dCN")
+
+# fgsea 분석 함수----------------------------------------------------------------
+run_fgsea <- function(ranks) {
+  fgsea(pathways = fgsea_sets, stats = ranks, minSize = 15, maxSize = 500)
+}
+
+fgseaRes_uCN <- run_fgsea(ranks_uCN)
+fgseaRes_dCN <- run_fgsea(ranks_dCN)
+
+
+# Function to get top enriched and opposite pathways
+get_top_enriched_and_opposite <- function(fgseaRes) {
+  # Order by adjusted p-value
+  sorted_res <- fgseaRes[order(fgseaRes$padj), ]
+  
+  # Top 10 enriched pathways (positive NES)
+  top_enriched <- sorted_res[sorted_res$NES > 0, ][1:10, ]
+  
+  # Top 10 opposite pathways (negative NES)
+  top_opposite <- sorted_res[sorted_res$NES < 0, ][1:10, ]
+  
+  # Combine both results
+  list(top_enriched = top_enriched, top_opposite = top_opposite)
+}
+
+# Apply the function to the fgsea results
+topPathways_uCN <- get_top_enriched_and_opposite(fgseaRes_uCN)
+topPathways_dCN <- get_top_enriched_and_opposite(fgseaRes_dCN)
+
+# Combine enriched and opposite pathways into one data frame for plotting
+combine_pathways <- function(top_enriched, top_opposite) {
+  combined <- rbind(top_enriched, top_opposite)
+  combined$pathway <- factor(combined$pathway, levels = combined$pathway[order(combined$NES)])
+  return(combined)
+}
+
+# Apply combining function to both uCN and dCN
+combined_uCN <- combine_pathways(topPathways_uCN$top_enriched, topPathways_uCN$top_opposite)
+combined_dCN <- combine_pathways(topPathways_dCN$top_enriched, topPathways_dCN$top_opposite)
+
+# Plotting function for combined pathways
+plot_combined_pathways <- function(combinedPathways, title) {
+  ggplot(combinedPathways, aes(reorder(pathway, NES), NES)) +
+    geom_col(aes(fill = NES > 0)) +
+    coord_flip() +
+    labs(x = "Pathway", y = "Normalized Enrichment Score", title = title) +
+    scale_fill_manual(values = c("TRUE" = "#52B1E3", "FALSE" = "#E5616C")) + # custom colors for positive and negative NES
+    theme_classic() +
+    theme(legend.position = "none")
+}
+
+# Generate combined plots
+plot_combined_uCN <- plot_combined_pathways(combined_uCN, "Top Pathways (Enriched & Opposite) in uCN")
+plot_combined_dCN <- plot_combined_pathways(combined_dCN, "Top Pathways (Enriched & Opposite) in dCN")
+
+# Save the combined plots
+plots <- list(plot_combined_uCN, plot_combined_dCN)
+titles <- c("Top Pathways uCN", "Top Pathways dCN")
+filenames <- c("fgsea_combined_uCN.png", "fgsea_combined_dCN.png")
+
+# Save each combined plot as a PNG file
+for (i in 1:length(plots)) {
+  png(file = paste0('figures/01_', filenames[i]), width = 1600, height = 1800, res = 300)
+  print(plots[[i]] + labs(title = titles[i]))
+  dev.off()
+}
+
+# enrichment plot for single pathway ========================================================
+fgseaRes <- fgsea(pathways = fgsea_sets, 
+                  stats    = ranks_uCN,
+                  eps      = 0.0,
+                  minSize  = 15,
+                  maxSize  = 500,
+                  scoreType = "pos")
+
+head(fgseaRes[order(pval), ])
+plt <- plotEnrichment(fgsea_sets[["HALLMARK_OXIDATIVE_PHOSPHORYLATION"]],
+               ranks_uCN) + labs(title="HALLMARK_OXIDATIVE_PHOSPHORYLATION")
+
+
+png('figures/01_enrichplot_uCN_test.png', width=2000, height=1500, unit = "px", res = 300)
+plt
+dev.off()
+
+
+
+# enrichment plot for top 10 pathways =======================================================
+topPathwaysUp <- fgseaRes[ES > 0][head(order(pval), n=10), pathway]
+topPathwaysDown <- fgseaRes[ES < 0][head(order(pval), n=10), pathway]
+topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
+plt <- plotGseaTable(fgsea_sets[topPathways], ranks_uCN, fgseaRes, 
+              gseaParam=0.5)
+png('figures/01_enrichplot_uCN_all_top10.png', width=3000, height=2000, unit = "px", res = 300)
+plt
+dev.off()
+
+
+
+# featureplot ================================================================================
+save <- dt
+# Step 1: Add NES scores to metadata
+
+# Assuming you want to map the NES scores of a specific pathway, e.g., "HALLMARK_TNFA_SIGNALING_VIA_NFKB"
+pathway_of_interest <- "HALLMARK_OXIDATIVE_PHOSPHORYLATION"
+
+# Add NES scores to metadata for uCN and dCN
+dt$NES_uCN <- ifelse(topPathways_uCN$pathway == pathway_of_interest, topPathways_uCN$NES, NA)
+dt$NES_dCN <- ifelse(topPathways_dCN$pathway == pathway_of_interest, topPathways_dCN$NES, NA)
+
+# Alternatively, you could create a combined NES score by averaging or taking the max/min of the NES scores
+# dt$NES_combined <- pmax(dt$NES_uCN, dt$NES_dCN, na.rm = TRUE)
+
+# Step 2: Plot the NES scores on UMAP
+
+# For uCN
+png('figures/01_ftplot_uCN_top1.png', width=3000, height=2000, unit = "px", res = 300)
+FeaturePlot(dt, features = "NES_uCN", reduction = "wnn.umap",cols=c("grey85","red")) + 
+  scale_fill_viridis_c() +
+  theme_classic()
+dev.off()
+
+# For dCN
+FeaturePlot(dt, features = "NES_dCN", reduction = "umap") + 
+  scale_fill_viridis_c() +
+  theme_classic()
+
+
+
+
+
+
+
+
+
+
+
+
+
+# enrichment plot for single pathway ========================================================
+save <- dt
+dt <- save
+
+Idents(dt) <- 'celltype.l1'
+dt <- subset(dt, idents='NK')
+
+Idents(dt) <- 'subgroup'
+DefaultAssay(dt) <- 'RNA'
+
+# Wilcox test를 사용하여 차별 발현 유전자 계산
+myData.cluster <- wilcoxauc(dt, "subgroup", groups_use = c('uCN', 'dCN'))
+
+# 각 그룹에 대해 랭크 점수 생성
+rank_data <- function(group_name) {
+  myData.cluster %>%
+    dplyr::filter(group == group_name) %>%
+    arrange(desc(auc)) %>%
+    dplyr::select(feature, auc) %>%
+    deframe()
+}
+
+ranks_uCN <- rank_data("uCN")
+ranks_dCN <- rank_data("dCN")
+
+fgseaRes <- fgsea(pathways = fgsea_sets, 
+                  stats    = ranks_uCN,
+                  eps      = 0.0,
+                  minSize  = 15,
+                  maxSize  = 500,
+                  scoreType = "pos")
+
+head(fgseaRes[order(pval), ])
+plt <- plotEnrichment(fgsea_sets[["HALLMARK_INTERFERON_GAMMA_RESPONSE"]],
+               ranks_uCN) + labs(title="HALLMARK_INTERFERON_GAMMA_RESPONSE")
+
+
+png('figures/01_enrichplot_NK_ifr_pathway.png', width=2000, height=1500, unit = "px", res = 300)
+plt
+dev.off()
+
+
+
+# enrichment plot for single pathway ========================================================
+dt <- save
+
+Idents(dt) <- 'celltype.l1'
+dt <- subset(dt, idents='CD4+ T')
+
+Idents(dt) <- 'subgroup'
+DefaultAssay(dt) <- 'RNA'
+
+# Wilcox test를 사용하여 차별 발현 유전자 계산
+myData.cluster <- wilcoxauc(dt, "subgroup", groups_use = c('uCN', 'dCN'))
+
+# 각 그룹에 대해 랭크 점수 생성
+rank_data <- function(group_name) {
+  myData.cluster %>%
+    dplyr::filter(group == group_name) %>%
+    arrange(desc(auc)) %>%
+    dplyr::select(feature, auc) %>%
+    deframe()
+}
+
+ranks_uCN <- rank_data("uCN")
+ranks_dCN <- rank_data("dCN")
+
+fgseaRes <- fgsea(pathways = fgsea_sets, 
+                  stats    = ranks_uCN,
+                  eps      = 0.0,
+                  minSize  = 15,
+                  maxSize  = 500,
+                  scoreType = "pos")
+
+head(fgseaRes[order(pval), ])
+plt <- plotEnrichment(fgsea_sets[["HALLMARK_INTERFERON_GAMMA_RESPONSE"]],
+               ranks_uCN) + labs(title="HALLMARK_INTERFERON_GAMMA_RESPONSE")
+
+
+png('figures/01_enrichplot_CD4.png', width=2000, height=1500, unit = "px", res = 300)
+plt
+dev.off()
+
+
+# enrichment plot for single pathway ========================================================
+dt <- save
+
+Idents(dt) <- 'celltype.l1'
+dt <- subset(dt, idents='CD8+ T')
+
+Idents(dt) <- 'subgroup'
+DefaultAssay(dt) <- 'RNA'
+
+# Wilcox test를 사용하여 차별 발현 유전자 계산
+myData.cluster <- wilcoxauc(dt, "subgroup", groups_use = c('uCN', 'dCN'))
+
+# 각 그룹에 대해 랭크 점수 생성
+rank_data <- function(group_name) {
+  myData.cluster %>%
+    dplyr::filter(group == group_name) %>%
+    arrange(desc(auc)) %>%
+    dplyr::select(feature, auc) %>%
+    deframe()
+}
+
+ranks_uCN <- rank_data("uCN")
+ranks_dCN <- rank_data("dCN")
+
+fgseaRes <- fgsea(pathways = fgsea_sets, 
+                  stats    = ranks_uCN,
+                  eps      = 0.0,
+                  minSize  = 15,
+                  maxSize  = 500,
+                  scoreType = "pos")
+
+head(fgseaRes[order(pval), ])
+plt <- plotEnrichment(fgsea_sets[["HALLMARK_INTERFERON_GAMMA_RESPONSE"]],
+               ranks_uCN) + labs(title="HALLMARK_INTERFERON_GAMMA_RESPONSE")
+
+
+png('figures/01_enrichplot_CD8.png', width=2000, height=1500, unit = "px", res = 300)
+plt
+dev.off()
+
+
+
+# enrichment plot for single pathway ========================================================
+dt <- save
+
+Idents(dt) <- 'celltype.l1'
+dt <- subset(dt, idents='CD14 Mono')
+
+Idents(dt) <- 'subgroup'
+DefaultAssay(dt) <- 'RNA'
+
+# Wilcox test를 사용하여 차별 발현 유전자 계산
+myData.cluster <- wilcoxauc(dt, "subgroup", groups_use = c('uCN', 'dCN'))
+
+# 각 그룹에 대해 랭크 점수 생성
+rank_data <- function(group_name) {
+  myData.cluster %>%
+    dplyr::filter(group == group_name) %>%
+    arrange(desc(auc)) %>%
+    dplyr::select(feature, auc) %>%
+    deframe()
+}
+
+ranks_uCN <- rank_data("uCN")
+ranks_dCN <- rank_data("dCN")
+
+fgseaRes <- fgsea(pathways = fgsea_sets, 
+                  stats    = ranks_uCN,
+                  eps      = 0.0,
+                  minSize  = 15,
+                  maxSize  = 500,
+                  scoreType = "pos")
+
+head(fgseaRes[order(pval), ])
+plt <- plotEnrichment(fgsea_sets[["HALLMARK_COMPLEMENT"]],
+               ranks_uCN) + labs(title="HALLMARK_COMPLEMENT")
+
+
+png('figures/01_enrichplot_CD14Mono.png', width=2000, height=1500, unit = "px", res = 300)
+plt
+dev.off()
+
+
+
+# enrichment plot for single pathway ========================================================
+dt <- save
+
+Idents(dt) <- 'celltype.l1'
+dt <- subset(dt, idents='B')
+
+Idents(dt) <- 'subgroup'
+DefaultAssay(dt) <- 'RNA'
+
+# Wilcox test를 사용하여 차별 발현 유전자 계산
+myData.cluster <- wilcoxauc(dt, "subgroup", groups_use = c('uCN', 'dCN'))
+
+# 각 그룹에 대해 랭크 점수 생성
+rank_data <- function(group_name) {
+  myData.cluster %>%
+    dplyr::filter(group == group_name) %>%
+    arrange(desc(auc)) %>%
+    dplyr::select(feature, auc) %>%
+    deframe()
+}
+
+ranks_uCN <- rank_data("uCN")
+ranks_dCN <- rank_data("dCN")
+
+fgseaRes <- fgsea(pathways = fgsea_sets, 
+                  stats    = ranks_uCN,
+                  eps      = 0.0,
+                  minSize  = 15,
+                  maxSize  = 500,
+                  scoreType = "pos")
+
+head(fgseaRes[order(pval), ])
+plt <- plotEnrichment(fgsea_sets[["HALLMARK_TNFA_SIGNALING_VIA_NFKB"]],
+               ranks_uCN) + labs(title="HALLMARK_TNFA_SIGNLALING_VIA_NFKB")
+
+
+png('figures/01_enrichplot_B.png', width=2000, height=1500, unit = "px", res = 300)
+plt
+dev.off()
+
+
+
+
+## Run by celltype ===================================================================================================================
+dt <- readRDS('/home/ubuntu/analysis/scRepertoire/data/03-1.rds')
+save <- dt
+dt <- save
+
+Idents(dt) <- 'celltype.l1'
+dt <- subset(dt, idents='CD4+ T')
+
+Idents(dt) <- 'subgroup'
+DefaultAssay(dt) <- 'RNA'
+
+# Wilcox test를 사용하여 차별 발현 유전자 계산
+myData.cluster <- wilcoxauc(dt, "subgroup", groups_use = c('uCN', 'dCN'))
+
+# 각 그룹에 대해 랭크 점수 생성
+rank_data <- function(group_name) {
+  myData.cluster %>%
+    dplyr::filter(group == group_name) %>%
+    arrange(desc(auc)) %>%
+    dplyr::select(feature, auc) %>%
+    deframe()
+}
+
+ranks_uCN <- rank_data("uCN")
+ranks_dCN <- rank_data("dCN")
+
+# fgsea 분석 함수----------------------------------------------------------------
+run_fgsea <- function(ranks) {
+  fgsea(pathways = fgsea_sets, stats = ranks, minSize = 15, maxSize = 500)
+}
+
+fgseaRes_uCN <- run_fgsea(ranks_uCN)
+fgseaRes_dCN <- run_fgsea(ranks_dCN)
+
+
+# Function to get top enriched and opposite pathways
+get_top_enriched_and_opposite <- function(fgseaRes) {
+  # Order by adjusted p-value
+  sorted_res <- fgseaRes[order(fgseaRes$padj), ]
+  
+  # Top 10 enriched pathways (positive NES)
+  top_enriched <- sorted_res[sorted_res$NES > 0, ][1:10, ]
+  
+  # Top 10 opposite pathways (negative NES)
+  top_opposite <- sorted_res[sorted_res$NES < 0, ][1:10, ]
+  
+  # Combine both results
+  list(top_enriched = top_enriched, top_opposite = top_opposite)
+}
+
+# Apply the function to the fgsea results
+topPathways_uCN <- get_top_enriched_and_opposite(fgseaRes_uCN)
+topPathways_dCN <- get_top_enriched_and_opposite(fgseaRes_dCN)
+
+# Combine enriched and opposite pathways into one data frame for plotting
+combine_pathways <- function(top_enriched, top_opposite) {
+  combined <- rbind(top_enriched, top_opposite)
+  combined$pathway <- factor(combined$pathway, levels = combined$pathway[order(combined$NES)])
+  return(combined)
+}
+
+# Apply combining function to both uCN and dCN
+combined_uCN <- combine_pathways(topPathways_uCN$top_enriched, topPathways_uCN$top_opposite)
+combined_dCN <- combine_pathways(topPathways_dCN$top_enriched, topPathways_dCN$top_opposite)
+
+# Plotting function for combined pathways
+plot_combined_pathways <- function(combinedPathways, title) {
+  ggplot(combinedPathways, aes(reorder(pathway, NES), NES)) +
+    geom_col(aes(fill = NES > 0)) +
+    coord_flip() +
+    labs(x = "Pathway", y = "Normalized Enrichment Score", title = title) +
+    scale_fill_manual(values = c("TRUE" = "#52B1E3", "FALSE" = "#E5616C")) + # custom colors for positive and negative NES
+    theme_classic() +
+    theme(legend.position = "none")
+}
+
+# Generate combined plots
+plot_combined_uCN <- plot_combined_pathways(combined_uCN, "Top Pathways (Enriched & Opposite) in uCN")
+plot_combined_dCN <- plot_combined_pathways(combined_dCN, "Top Pathways (Enriched & Opposite) in dCN")
+
+# Save the combined plots
+plots <- list(plot_combined_uCN, plot_combined_dCN)
+titles <- c("Top Pathways uCN", "Top Pathways dCN")
+filenames <- c("fgsea_combined_uCN_CD4.png", "fgsea_combined_dCN_CD4.png")
+
+# Save each combined plot as a PNG file
+for (i in 1:length(plots)) {
+  png(file = paste0('figures/01_', filenames[i]), width = 1600, height = 1800, res = 300)
+  print(plots[[i]] + labs(title = titles[i]))
+  dev.off()
+}

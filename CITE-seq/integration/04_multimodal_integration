@@ -1,0 +1,133 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : rna+adt wnn integration
+# author      : songnsnow
+# date        : 240425
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_adt")   # set working directory
+getwd()     # check
+
+# load libraries
+library(Seurat)
+library(dplyr)
+library(SeuratData)
+library(ggplot2)
+library(patchwork)
+# library(ragg)
+
+dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_adt/rds/02_30_1_adt_itg.rds')
+save_org <- dt
+# check
+DimPlot(dt, reduction = "umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave(paste('figures/04_check.png',sep=''),width=15, height=10,scale=1.5)
+
+# RNA + ADT processing --------------------------------------------------------------------------------
+save1 <- dt
+dt <- save1
+dim_value1 <- '50'
+dim_value2 <- '50'
+res_value <- '1'
+
+dt <- FindMultiModalNeighbors(
+  dt, reduction.list = list("rna_harmony", "cite_harmony"), 
+  dims.list = list(1:50, 1:50), modality.weight.name = "RNA.weight"
+)
+dt <- RunUMAP(dt, nn.name = "weighted.nn", reduction.name = "wnn.umap", reduction.key = "wnnUMAP_")
+dt <- FindClusters(dt, graph.name = "wsnn", algorithm = 3, resolution = 1, verbose = FALSE)
+save2 <- dt
+
+# RNA + Protein
+DimPlot(dt, reduction = "wnn.umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave(paste('figures/04_wnn_',dim_value1,'_',dim_value2,'_',res,'.png',sep=''),width=15, height=10,scale=1.5)
+
+p1 <- DimPlot(dt, reduction = 'wnn.umap', label = TRUE, repel = TRUE, label.size = 2.5) + NoLegend()
+p2 <- DimPlot(dt, reduction = 'wnn.umap', group.by = 'celltype.l2', label = TRUE, repel = TRUE, label.size = 2.5) + NoLegend()
+p1 + p2
+ggsave(paste('figures/04_wnn_',dim_value1,'_',dim_value2,'_',res,'_celltype.png',sep=''),width=15, height=10,scale=1.5)
+
+# RNA vs ADT
+dt <- RunUMAP(dt, reduction = 'rna_harmony', dims = 1:50, assay = 'RNA', 
+              reduction.name = 'rna.umap', reduction.key = 'rnaUMAP_')
+prots = rownames(dt@assays$CITE)[1:130]
+dt <- RunUMAP(dt, assay = "CITE", reduction = "cite_harmony", features = prots,
+                    seed.use = 1990, min.dist = 0.2, n.neighbors = 30,
+                    verbose = TRUE, reduction.name='adt.umap',reduction.key = 'citeUMAP_')
+save3 <- dt
+
+p3 <- DimPlot(dt, reduction = 'rna.umap', group.by = 'celltype.l2', label = TRUE, 
+              repel = TRUE, label.size = 2.5) + NoLegend()
+p4 <- DimPlot(dt, reduction = 'adt.umap', group.by = 'celltype.l2', label = TRUE, 
+              repel = TRUE, label.size = 2.5) + NoLegend()
+p3 + p4
+ggsave('figures/04_wnn_rna_or_adt_celltype.png',width=10, height=5,scale=1.5)
+
+p3 <- DimPlot(dt, reduction = 'rna.umap', label = TRUE, 
+              repel = TRUE, label.size = 2.5) + NoLegend()
+p4 <- DimPlot(dt, reduction = 'adt.umap', label = TRUE, 
+              repel = TRUE, label.size = 2.5) + NoLegend()
+p3 + p4
+ggsave('figures/04_wnn_rna_or_adt.png',width=10, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "rna.umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave('figures/04_RNA_cluster.png',width=15, height=10,scale=1.5)
+DimPlot(dt, reduction = "adt.umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave('figures/04_protein_cluster.png',width=15, height=10,scale=1.5)
+
+# after batch correction plots
+p1 <- DimPlot(dt, reduction = "wnn.umap", group.by = "batch")
+p2 <- DimPlot(dt, reduction = "rna.umap", group.by = "batch")
+p3 <- DimPlot(dt, reduction = "adt.umap", group.by = "batch")
+p1 + p2 + p3
+ggsave(paste('figures/04_batch_effect_',dim_value1,'_',dim_value2,'_',res_value,'.png',sep=''),width=15, height=5,scale=1.5)
+
+# save
+saveRDS(dt,paste('rds/04_',dim_value,'_',res_value,'_wnn_itg.rds',sep=''))
+saveRDS(save3,paste('rds/04_',dim_value1,'_',dim_value2,'_',res_value,'_wnn_itg.rds',sep=''))
+
+
+saveRDS(save3,'/data/project/mRCC_HWS/analysis/sc_seurat_multimodal/multimodal_rcc.rds')
+
+
+# markers plotting ---------------------------------------------------------------------------
+p5 <- FeaturePlot(dt, features = c("adt_CD45RA","adt_CD16","adt_CD161"),
+                  reduction = 'wnn.umap', max.cutoff = 2, 
+                  cols = c("lightgrey","darkgreen"), ncol = 3)
+p6 <- FeaturePlot(dt, features = c("rna_TRDC","rna_MPO","rna_AVP"), 
+                  reduction = 'wnn.umap', max.cutoff = 3, ncol = 3)
+p5 / p6
+
+
+VlnPlot(bm, features = "RNA.weight", group.by = 'celltype.l2', sort = TRUE, pt.size = 0.1) +
+  NoLegend()
+
+
+
+
+# adt markers plotting 240612 --------------------------------------------------------------------
+DefaultAssay(dt) <- 'CITE'
+Idents(dt) <- 'seurat_clusters'
+fts <- c("Hu.CD3-UCHT1", "Hu.CD11c", "Hu.CD8", "Hu.CD16", "Hu.CD19", "CD3E", "ITGAX", "CD8A", "FCGR3A", "CD19")
+p1 <- FeaturePlot(dt, features = fts, reduction='wnn.umap', min.cutoff = "q05", max.cutoff = "q95", ncol = 5)
+ggsave('figures/04-1_wnn.png',width=15, height=6,scale=1.5)
+
+p2 <- FeaturePlot(dt, features = fts, reduction='rna.umap', min.cutoff = "q05", max.cutoff = "q95", ncol = 5)
+ggsave('figures/04-1_rna.png',width=15, height=6,scale=1.5)
+
+p3 <- FeaturePlot(dt, features = fts, reduction='adt.umap', min.cutoff = "q05", max.cutoff = "q95", ncol = 5)
+ggsave('figures/04-1_adt.png',width=15, height=6,scale=1.5)
+
+Idents(dt) <- 'celltype.l1'
+T_cell <- subset(dt,idents=c('CD4+ T','CD8+ T','MAIT','gdT'))
+DefaultAssay(T_cell) <- 'CITE'
+FeatureScatter(T_cell, feature1 = "Hu.CD4-RPA.T4", feature2 = "Hu.CD8",log=TRUE) + theme(plot.background = element_rect(fill = "white"))
+ggsave('figures/04-1_featurescatter_t_cd4_cd8.png',width=3, height=3,scale=1.5)
+
+CD4_T_cell <- subset(dt,idents=c('CD4+ T'))
+FeatureScatter(CD4_T_cell, feature1 = "CD4", feature2 = "Hu.CD4-RPA.T4") + theme(plot.background = element_rect(fill = "white"))
+ggsave('figures/04-1_featurescatter_t_rna_adt_cd4_cd4.png',width=2.5, height=1.5,scale=1.5)
+
+
+FeaturePlot(dt, features = c("adt_CD45RA","adt_CD16","adt_CD161"),
+                  reduction = 'wnn.umap', max.cutoff = 2, 
+                  cols = c("lightgrey","darkgreen"), ncol = 3)

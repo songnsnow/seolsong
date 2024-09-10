@@ -1,0 +1,61 @@
+# ALL ------------------------
+gatk CombineGVCFs \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/CKS/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/KKH/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/PJY/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/PSY/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/YKH/09VarFilt.g.vcf.gz \
+    -O /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC.g.vcf.gz
+
+
+# pool 1 ---------------------
+gatk CombineGVCFs \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/CKS/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/KKH/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/PJY/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/PSY/09VarFilt.g.vcf.gz \
+    -O /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s1.g.vcf.gz
+
+
+# pool 2 ---------------------
+gatk CombineGVCFs \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/CKS/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/KKH/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/PJY/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/YKH/09VarFilt.g.vcf.gz \
+    -O /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s2.g.vcf.gz
+
+
+# pool 3 ---------------------
+gatk CombineGVCFs \
+    -R /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/Homo_sapiens_assembly38.fasta \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/KKH/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/PSY/09VarFilt.g.vcf.gz \
+    --variant /data/project/mRCC_HWS/analysis/bulk_vcf/outs/YKH/09VarFilt.g.vcf.gz \
+    -O /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC_s3.g.vcf.gz
+
+
+
+#----------------------------------------------------------------------------------
+
+picard ReorderSam \
+    I=/data/project/RCC_HWS/H372TDSX7/test_sample/outs/possorted_genome_bam.bam \
+    O=/data/project/RCC_HWS/SS/sc/scRCC.bam \
+    R=/home/songnsnow/download/STAR_run/reference/Homo_sapiens_assembly38.fasta \
+    CREATE_INDEX=TRUE \
+    ALLOW_INCOMPLETE_DICT_CONCORDANCE=TRUE
+
+
+
+singularity exec /data/project/RCC_HWS/Demuxafy.sif souporcell_pipeline.py \
+    -i /data/project/RCC_HWS/H372TDSX7/test_sample/outs/possorted_genome_bam.bam \
+    -b /data/project/RCC_HWS/H372TDSX7/test_sample/outs/filtered_feature_bc_matrix/barcodes.tsv.gz \
+    -f /data/project/RCC_HWS/H372TDSX7/refdata-gex-GRCh38-2020-A/fasta/genome.fa \
+    --known_genotypes /data/project/RCC_HWS/SJ/RCC.vcf \
+    --known_genotypes_sample_names CSB CSK KJT KSH KYE LHJ MYS YJH \
+    -t 40 \
+    -o /data/project/RCC_HWS/SJ/SouporCelltest1 \
+    -k 8

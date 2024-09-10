@@ -1,0 +1,182 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : QC (+ remove doublets & unassigned from SouporCell)
+# author      : songnsnow
+# date        : 240415
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_adt")   # set working directory
+getwd()     # check
+
+# load libraries
+library(Seurat)
+library(dplyr)
+library(SeuratData)
+library(ggplot2)
+library(patchwork)
+library(ragg)
+
+dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat/rds/05-2_50_2.rds')
+
+# QC ------------------------------------------------------------------------------------------------------
+DefaultAssay(object = dt) <- "Protein"
+save <- dt
+# dt <- save
+
+# clean up data
+dt <- DietSeurat(dt, layers = NULL,
+  features = NULL,
+  assays = NULL,
+  dimreducs = NULL,
+  graphs = NULL,
+  misc = TRUE)
+dt
+
+columns.to.remove <- c('RNA_snn_res.0.5','seurat_clusters','percent.mt','nCount_SCT','nFeature_SCT','SCT_snn_res.1','integrated.clusters')
+for(i in columns.to.remove) {
+  dt[[i]] <- NULL
+}
+colnames(dt@meta.data)
+save2 <- dt
+
+
+# test --------------------------------------------------------------------------------------------------------
+# dt <- PercentageFeatureSet(dt, pattern = "^MT-", col.name = "percent.mt")
+# dt <- NormalizeData(dt)
+# dt <- FindVariableFeatures(dt, selection.method = "vst", nfeatures = 2000)
+
+# top10 <- head(VariableFeatures(dt), 10)
+# plot1 <- VariableFeaturePlot(dt)
+# plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+# plot1 + plot2
+# ggsave(paste('figures/03-3_',fn,'_variablefeatureplot.png',sep=''),width=10, height=5,scale=1.5,bg = 'white')
+
+# all.genes <- rownames(dt)
+# dt <- ScaleData(dt, features = all.genes)
+# dt <- RunPCA(dt, features = VariableFeatures(object = dt))
+
+# ElbowPlot(dt,ndims=50)
+# ggsave(paste('figures/03-3_',fn,'_elbowplot.png',sep=''),width=5, height=5,scale=1.5,bg = 'white')
+
+# save3 <- dt
+# dt <- FindNeighbors(dt, dims = 1:30) %>%
+#     FindClusters(resolution = 1) %>%
+#     RunUMAP(dims = 1:30)
+
+# DimPlot(dt, reduction = "umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+# ggsave(paste('figures/05-4_',dim_value,'_',res_value,'_unint_group.png',sep=''),width=15, height=10,scale=1.5)
+
+# DimPlot(dt, reduction = "umap", group.by = "seurat_clusters", label=TRUE)
+# ggsave(paste('figures/05-4_',dim_value,'_',res_value,'_unint_clusters.png',sep=''),width=10, height=10,scale=1.5)
+
+# DimPlot(dt, reduction = "umap", split.by = "batch")
+# ggsave(paste('figures/05-4_',dim_value,'_',res_value,'_unint_batch.png',sep=''),width=15, height=10,scale=1.5)
+
+# DimPlot(dt, reduction = "umap", split.by = "id", ncol=4)
+# ggsave(paste('figures/05-4_',dim_value,'_',res_value,'_unint_id.png',sep=''),width=15, height=10,scale=1.5)
+
+# DimPlot(dt, reduction = "umap", split.by = "donor", ncol=4)
+# ggsave(paste('figures/05-4_',dim_value,'_',res_value,'_unint_donor.png',sep=''),width=15, height=10,scale=1.5)
+
+# DimPlot(dt, reduction = "umap", split.by = "timepoint", ncol=4)
+# ggsave(paste('figures/05-4_',dim_value,'_',res_value,'_unint_timepoint.png',sep=''),width=15, height=10,scale=1.5)
+
+# DimPlot(dt, reduction = "umap", split.by = "subgroup", ncol=4)
+# ggsave(paste('figures/05-4_',dim_value,'_',res_value,'_unint_subgroup.png',sep=''),width=15, height=10,scale=1.5)
+
+# save_test <- dt
+# saveRDS(dt,'rds/00_adt_test.rds')
+
+
+
+
+# RNA + ADT processing --------------------------------------------------------------------------------
+DefaultAssay(dt) <- 'RNA'
+dt <- NormalizeData(dt) %>% FindVariableFeatures() %>% ScaleData() %>% RunPCA()
+
+DefaultAssay(dt) <- 'Protein'
+# we will use all ADT features for dimensional reduction
+# we set a dimensional reduction name to avoid overwriting the 
+VariableFeatures(dt) <- rownames(dt[["Protein"]])
+dt <- NormalizeData(dt, normalization.method = 'CLR', margin = 2) %>% 
+  ScaleData() %>% RunPCA(reduction.name = 'apca')
+
+dt <- FindMultiModalNeighbors(
+  dt, reduction.list = list("pca", "apca"), 
+  dims.list = list(1:30, 1:18), modality.weight.name = "RNA.weight"
+)
+
+dt <- RunUMAP(dt, nn.name = "weighted.nn", reduction.name = "wnn.umap", reduction.key = "wnnUMAP_")
+dt <- FindClusters(dt, graph.name = "wsnn", algorithm = 3, resolution = 2, verbose = FALSE)
+
+# test celltyping ##########################
+# The RunAzimuth function can take a Seurat object as input
+DefaultAssay(dt) <- 'RNA'
+dt <- RunAzimuth(dt, reference = "pbmcref")
+dp <- DimPlot(dt, group.by = "predicted.celltype.l2", label = TRUE, repel=TRUE, label.size = 3, reduction='wnn.umap') + NoLegend()
+ggsave('figures/06-1_azimuth.png',plot=dp,width=6, height=6, scale=2)
+############################################
+
+# RNA + Protein
+p1 <- DimPlot(dt, reduction = 'wnn.umap', label = TRUE, repel = TRUE, label.size = 2.5) + NoLegend()
+p2 <- DimPlot(dt, reduction = 'wnn.umap', group.by = 'predicted.celltype.l2', label = TRUE, repel = TRUE, label.size = 2.5) + NoLegend()
+p1 + p2
+ggsave('figures/01_RNA_and_protein_celltype.png',width=10, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "wnn.umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave('figures/01_RNA_and_protein_celltype.png',width=15, height=10,scale=1.5)
+
+
+# RNA vs ADT
+dt <- RunUMAP(dt, reduction = 'pca', dims = 1:30, assay = 'RNA', 
+              reduction.name = 'rna.umap', reduction.key = 'rnaUMAP_')
+dt <- RunUMAP(dt, reduction = 'apca', dims = 1:18, assay = 'ADT', 
+              reduction.name = 'adt.umap', reduction.key = 'adtUMAP_')
+
+p3 <- DimPlot(dt, reduction = 'rna.umap', group.by = 'predicted.celltype.l2', label = TRUE, 
+              repel = TRUE, label.size = 2.5) + NoLegend()
+p4 <- DimPlot(dt, reduction = 'adt.umap', group.by = 'predicted.celltype.l2', label = TRUE, 
+              repel = TRUE, label.size = 2.5) + NoLegend()
+p3 + p4
+ggsave('figures/01_RNA_or_protein_celltype.png',width=10, height=5,scale=1.5)
+
+p3 <- DimPlot(dt, reduction = 'rna.umap', label = TRUE, 
+              repel = TRUE, label.size = 2.5) + NoLegend()
+p4 <- DimPlot(dt, reduction = 'adt.umap', label = TRUE, 
+              repel = TRUE, label.size = 2.5) + NoLegend()
+p3 + p4
+ggsave('figures/01_RNA_or_protein_cluster.png',width=10, height=5,scale=1.5)
+
+DimPlot(dt, reduction = "rna.umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave('figures/01_RNA_cluster.png',width=15, height=10,scale=1.5)
+DimPlot(dt, reduction = "adt.umap", group.by = c("id","donor","timepoint","batch","subgroup","seurat_clusters"))
+ggsave('figures/01_protein_cluster.png',width=15, height=10,scale=1.5)
+
+# batch correction needed plots
+p1 <- DimPlot(dt, reduction = "wnn.umap", group.by = "batch")
+p2 <- DimPlot(dt, reduction = "rna.umap", group.by = "batch")
+p3 <- DimPlot(dt, reduction = "adt.umap", group.by = "batch")
+p1 + p2 + p3
+ggsave('figures/01_batch_effect.png',width=15, height=5,scale=1.5)
+
+
+
+
+
+
+# markers
+p5 <- FeaturePlot(dt, features = c("adt_CD45RA","adt_CD16","adt_CD161"),
+                  reduction = 'wnn.umap', max.cutoff = 2, 
+                  cols = c("lightgrey","darkgreen"), ncol = 3)
+p6 <- FeaturePlot(dt, features = c("rna_TRDC","rna_MPO","rna_AVP"), 
+                  reduction = 'wnn.umap', max.cutoff = 3, ncol = 3)
+p5 / p6
+
+
+VlnPlot(bm, features = "RNA.weight", group.by = 'celltype.l2', sort = TRUE, pt.size = 0.1) +
+  NoLegend()
+
+
+
+
+

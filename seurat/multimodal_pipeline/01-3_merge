@@ -1,0 +1,40 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : merge dsb normalized data
+# author      : songnsnow
+# date        : 240702
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# load libraries
+library(Seurat)
+
+# dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/01-2.rds')
+
+# merge pools -----------------------------------------------------------------------------------------
+dsb.1$batch <- 'B1'
+dsb.2$batch <- 'B2'
+dsb.3$batch <- 'B3'
+
+dt <- merge(dsb.1,y=c(dsb.2, dsb.3))  # 76296
+save <- dt
+# colnames(dt@meta.data)
+
+# Extract id from metadata
+df <- dt@meta.data[, c("id","subgroup"), drop = FALSE]
+
+# Mapping information
+mapping <- data.frame(
+  id = c('RCC_A1', 'RCC_A2', 'RCC_B1', 'RCC_B2', 'RCC_B3', 'RCC_C1', 'RCC_C2', 'RCC_D1', 'RCC_D2', 'RCC_E1', 'RCC_E2'),
+  donor = c('RCC_A', 'RCC_A', 'RCC_B', 'RCC_B', 'RCC_B', 'RCC_C', 'RCC_C', 'RCC_D', 'RCC_D', 'RCC_E', 'RCC_E'),
+  timepoint = c('Init', 'Nivo/ipi_2', 'Init', 'CN', 'Nivo/ipi_2', 'Nivo/ipi_1', 'Nivo_maint', 'Nivo/ipi_1', 'Nivo_maint', 'Init', 'Nivo/ipi_1'),
+  subgroup_2 = c('uCN_Init', 'uCN_Nivo/ipi_2', 'uCN_Init', 'uCN_CN', 'uCN_Nivo/ipi_2', 'dCN_Nivo/ipi_1', 'dCN_Nivo_maint', 'dCN_Nivo/ipi_1', 'dCN_Nivo_maint', 'dCN_Init', 'dCN_Nivo/ipi_1')
+)
+
+# Merge to add donor, timepoint, and subgroup_2 columns
+df <- merge(df, mapping, by = 'id', all.x = TRUE)
+dt <- AddMetaData(dt, metadata = df)
+
+saveRDS(dt, 'rds/01-3.rds')

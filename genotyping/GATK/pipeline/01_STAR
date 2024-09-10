@@ -1,0 +1,58 @@
+
+# 240307
+
+# env: STAR
+
+# runSTAR ------------------------------------------------------------------------------------
+STAR --runThreadN 20 \
+--genomeDir /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/indices \
+--readFilesIn /data/project/mRCC/bulkRNA-seq/CKS_1_1.fastq.gz /data/project/mRCC/bulkRNA-seq/CKS_1_2.fastq.gz \
+--readFilesCommand zcat \
+--outFileNamePrefix /data/project/mRCC/analysis/bulk_vcf/outs/CKS/01 \
+--outSAMtype BAM SortedByCoordinate \
+--outBAMsortingThreadN 6 \
+--twopassMode Basic \
+--sjdbOverhang 100
+
+STAR --runThreadN 20 \
+--genomeDir /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/indices \
+--readFilesIn /data/project/mRCC/bulkRNA-seq/KKH_1_1.fastq.gz /data/project/mRCC/bulkRNA-seq/KKH_1_2.fastq.gz \
+--readFilesCommand zcat \
+--outFileNamePrefix /data/project/mRCC/analysis/bulk_vcf/outs/KKH/01 \
+--outSAMtype BAM SortedByCoordinate \
+--outBAMsortingThreadN 6 \
+--twopassMode Basic \
+--sjdbOverhang 100
+
+STAR --runThreadN 20 \
+--genomeDir /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/indices \
+--readFilesIn /data/project/mRCC/bulkRNA-seq/PJY_1_1.fastq.gz /data/project/mRCC/bulkRNA-seq/PJY_1_2.fastq.gz \
+--readFilesCommand zcat \
+--outFileNamePrefix /data/project/mRCC/analysis/bulk_vcf/outs/PJY/01 \
+--outSAMtype BAM SortedByCoordinate \
+--outBAMsortingThreadN 6 \
+--twopassMode Basic \
+--sjdbOverhang 100
+
+STAR --runThreadN 20 \
+--genomeDir /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/indices \
+--readFilesIn /data/project/mRCC/bulkRNA-seq/PSY_1_1.fastq.gz /data/project/mRCC/bulkRNA-seq/PSY_1_2.fastq.gz \
+--readFilesCommand zcat \
+--outFileNamePrefix /data/project/mRCC/analysis/bulk_vcf/outs/PSY/01 \
+--outSAMtype BAM SortedByCoordinate \
+--outBAMsortingThreadN 6 \
+--twopassMode Basic \
+--sjdbOverhang 100
+
+STAR --runThreadN 20 \
+--genomeDir /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/references/indices \
+--readFilesIn /data/project/mRCC/bulkRNA-seq/YKH_1_1.fastq.gz /data/project/mRCC/bulkRNA-seq/YKH_1_2.fastq.gz \
+--readFilesCommand zcat \
+--outFileNamePrefix /data/project/mRCC/analysis/bulk_vcf/outs/YKH/01 \
+--outSAMtype BAM SortedByCoordinate \
+--outBAMsortingThreadN 6 \
+--twopassMode Basic \
+--sjdbOverhang 100
+
+# ------------------------------------------------------------------------------------------------
+

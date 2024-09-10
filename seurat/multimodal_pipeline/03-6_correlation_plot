@@ -1,0 +1,655 @@
+#/usr/bin/env seu5
+#-----------------------------------------------------------------------
+# description : gene expression correlation plot (RNA-seq vs CITE-seq)
+# author      : songnsnow
+# date        : 240818
+# notes       : 
+#-----------------------------------------------------------------------
+
+# Identify your markers
+T_marker <- "Hu.CD4-RPA.T4"
+M_marker <- "Hu.CD8"
+
+# Extract expression data
+Idents(dt) <- 'celltype.l1'
+T_cell <- subset(dt,ident=c('CD4+ T','CD8+ T'))
+dt <- T_cell
+DefaultAssay(dt) <- 'CITE'
+T_marker_expr <- FetchData(dt, vars = T_marker, layer = "data")
+M_marker_expr <- FetchData(dt, vars = M_marker, layer = "data")
+cell_types <- dt$celltype.l1  # Replace 'cell_type' with the actual metadata column name
+
+# Combine the data into a data frame
+expression_data <- data.frame(T_marker = T_marker_expr[[T_marker]],
+                              M_marker = M_marker_expr[[M_marker]],
+                              CellType = cell_types)
+
+expression_data$T_marker_z <- scale(expression_data$T_marker)
+expression_data$M_marker_z <- scale(expression_data$M_marker)
+expression_data$T_marker_log <- log1p(expression_data$T_marker)  # log1p is log(x + 1) to handle zero values
+expression_data$M_marker_log <- log1p(expression_data$M_marker)
+
+# Define two pretty red and blue colors from RColorBrewer
+red_blue_palette <- brewer.pal(3, "RdBu")[c(1, 3)] # Select the first and third colors from a 3-color RdBu palette
+
+# Plotting
+correlation_plot <- ggplot(expression_data, aes(x = T_marker_z, y = M_marker_z, color = CellType)) +
+                     geom_point(alpha = 1, size = 0.3) +
+                     labs(title = "Correlation Plot of CD4+ vs CD8+ ADT Expression",
+                          x = "ADT CD4 Expression",
+                          y = "ADT CD8 Expression") +
+                     theme_minimal() +
+                     scale_color_manual(values = c("CD4+ T" = red_blue_palette[1], "CD8+ T" = red_blue_palette[2]))
+
+png('figures/03-6_correlation_plot.png',width=1600, height=1600, unit="px", res=300)
+correlation_plot
+dev.off()
+
+
+
+
+
+############################################################### 
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load packages
+library(Seurat)
+options(Seurat.object.assay.version = "v5")
+library(EnhancedVolcano)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(ComplexHeatmap)
+library(colorspace)
+library(RColorBrewer)
+library(magrittr)
+library(colorRamp2)
+dt <- readRDS('rds/03-1.rds')
+
+# Identify your markers
+mk1 <- "Hu.CD4-RPA.T4"
+mk2 <- "Hu.CD8"
+
+# Extract expression data
+Idents(dt) <- 'celltype.l1'
+DefaultAssay(dt) <- 'CITE'
+mk1_expr <- FetchData(dt, vars = mk1, layer = "data")
+mk2_expr <- FetchData(dt, vars = mk2, layer = "data")
+cell_types <- dt$celltype.l1  # Replace 'cell_type' with the actual metadata column name
+
+# Combine the data into a data frame
+expression_data <- data.frame(mk1 = mk1_expr[[mk1]],
+                              mk2 = mk2_expr[[mk2]],
+                              CellType = cell_types)
+
+# Calculate average expression for each cell type
+average_expression <- expression_data %>%
+  group_by(CellType) %>%
+  summarize(mk1_avg = mean(mk1),
+            mk2_avg = mean(mk2))
+
+# Normalize and log-transform the average expression
+average_expression$mk1_z <- scale(average_expression$mk1_avg)
+average_expression$mk2_z <- scale(average_expression$mk2_avg)
+average_expression$mk1_log <- log1p(average_expression$mk1_avg)  # log1p is log(x + 1) to handle zero values
+average_expression$mk2_log <- log1p(average_expression$mk2_avg)
+
+# Define a color palette for 13 cell types
+vivid_palette <- c(brewer.pal(9, "Set1"), brewer.pal(4, "Dark2"))  # Using "Set1" and "Dark2" for more vivid colors
+
+# Plotting
+correlation_plot <- ggplot(average_expression, aes(x = mk1_z, y = mk2_z, color = CellType)) +
+                     geom_point(data = subset(average_expression, CellType %in% c("CD4+ T", "CD8+ T")),
+                                aes(fill = CellType), shape = 17, size = 4, stroke = 0) +  # Smaller filled points
+                     geom_point(data = subset(average_expression, !CellType %in% c("CD4+ T", "CD8+ T")),
+                                shape = 3, size = 2, stroke = 1) +  # Smaller outline points
+                     labs(title = "Correlation Plot of CD4+ vs CD8+ ADT Expression",
+                          x = "ADT CD4 Expression (z-score)",
+                          y = "ADT CD8 Expression (z-score)") +
+                     theme_minimal() +
+                     scale_color_manual(values = vivid_palette)
+                    #  scale_fill_manual(values = c("CD4+ T" = vivid_palette[1], "CD8+ T" = vivid_palette[2])) +
+                    #  guides(fill = guide_legend(override.aes = list(shape = 21)))
+
+
+# OR
+
+# Calculate the plot limits
+x_limits <- range(average_expression$mk1_z, na.rm = TRUE)
+y_limits <- range(average_expression$mk2_z, na.rm = TRUE)
+
+x_padding <- 0.5
+y_padding <- 0.5
+
+x_limits_expanded <- c(x_limits[1], x_limits[2] + x_padding)
+y_limits_expanded <- c(y_limits[1], y_limits[2] + y_padding)
+
+# Plotting
+x_limits <- range(average_expression$mk1_z, na.rm = TRUE)
+y_limits <- range(average_expression$mk2_z, na.rm = TRUE)
+
+x_padding <- 0.5
+y_padding <- 0.5
+
+x_limits_expanded <- c(x_limits[1], x_limits[2] + x_padding)
+y_limits_expanded <- c(y_limits[1], y_limits[2] + y_padding)
+
+# Plotting
+correlation_plot <- ggplot(average_expression, aes(x = mk1_z, y = mk2_z, color = CellType)) +
+                     geom_point(data = subset(average_expression, CellType %in% c("CD4+ T", "CD8+ T")),
+                                aes(fill = CellType), shape = 21, size = 5, stroke = 1.5) +  # Larger filled points
+                     geom_point(data = subset(average_expression, !CellType %in% c("CD4+ T", "CD8+ T")),
+                                shape = 21, size = 3, color = "black") +  # Larger outlined points
+                     geom_text(data = subset(average_expression, CellType %in% c("CD4+ T", "CD8+ T")),
+                               aes(label = CellType), vjust = -1, size = 5) +  # Larger labels
+                     labs(title = "CD4+ vs CD8+ ADT",
+                          x = "ADT CD4 Expression (z-score)",
+                          y = "ADT CD8 Expression (z-score)") +
+                     theme_minimal(base_size = 16) +  # Larger base text size
+                     theme(legend.position = "none",   # Remove the legend
+                     plot.title = element_text(face = "bold")) +  # Bold the title
+                     scale_color_manual(values = vivid_palette) +
+                     scale_fill_manual(values = vivid_palette) +
+                     coord_cartesian(xlim = x_limits_expanded, ylim = y_limits_expanded)  # Adjust axis limits with padding
+
+# Save plot with the same dimensions
+png('figures/03-6_correlation_plot.png', width = 1600, height = 1600, unit = "px", res = 300)
+print(correlation_plot)
+dev.off()
+
+
+
+
+####### 0731 ###########################################################################################
+# Extract the metadata and assays
+meta_data <- dt@meta.data
+rna_data <- GetAssayData(dt, assay = "RNA", slot = "data")
+cite_data <- GetAssayData(dt, assay = "CITE", slot = "data")
+
+# Get unique cell types
+cell_types <- unique(meta_data$celltype.l1)
+
+# Initialize lists to hold average expressions
+avg_rna <- numeric(length(cell_types))
+avg_cite <- numeric(length(cell_types))
+
+# Calculate average expression per cell type
+for (i in seq_along(cell_types)) {
+  # Get cells of the current cell type
+  cell_type <- cell_types[i]
+  cells <- which(meta_data$celltype.l1 == cell_type)
+  
+  # Calculate average RNA expression
+  avg_rna[i] <- mean(colMeans(rna_data[, cells]))
+  
+  # Calculate average CITE expression
+  avg_cite[i] <- mean(colMeans(cite_data[, cells]))
+}
+
+# Create a data frame for plotting
+df <- data.frame(
+  CellType = cell_types,
+  AvgRNA = avg_rna,
+  AvgCITE = avg_cite
+)
+
+# Plot using ggplot2
+p <- ggplot(df, aes(x = AvgRNA, y = AvgCITE, label = CellType)) +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, color = "darkgray", fill = "gray80", alpha = 0.4) +
+  geom_point(size = 3, color = "darkred") +
+  geom_text_repel(aes(label = CellType), size = 3, max.overlaps = 10, box.padding = 0.35, point.padding = 0.3) +
+  labs(title = "Correlation of RNA and CITE Assay Expressions",
+       x = "Average RNA Expression",
+       y = "Average CITE Expression") +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    panel.grid.major = element_line(color = "grey90"),
+    panel.grid.minor = element_line(color = "grey95")
+  )
+
+# Save the plot with a white background
+ggsave('figures/03-6_correlation_plot_all.png', plot = p, width = 5, height = 5, scale = 1, bg = "white")
+
+
+
+
+## edited 240818 -------------------------------------------------------------------------
+# Load necessary libraries
+library(ggplot2)
+library(ggrepel)
+
+# Assuming meta_data, rna_data, and cite_data have been loaded as before
+meta_data <- dt@meta.data
+rna_data <- GetAssayData(dt, assay = "RNA", slot = "data")
+cite_data <- GetAssayData(dt, assay = "CITE", slot = "data")
+
+# Get unique cell types
+cell_types <- unique(meta_data$celltype.l1)
+
+# Initialize lists to hold average expressions
+avg_rna <- numeric(length(cell_types))
+avg_cite <- numeric(length(cell_types))
+
+# Calculate average expression per cell type
+for (i in seq_along(cell_types)) {
+  # Get cells of the current cell type
+  cell_type <- cell_types[i]
+  cells <- which(meta_data$celltype.l1 == cell_type)
+  
+  # Calculate average RNA expression
+  avg_rna[i] <- mean(colMeans(rna_data[, cells]))
+  
+  # Calculate average CITE expression
+  avg_cite[i] <- mean(colMeans(cite_data[, cells]))
+}
+
+# Create a data frame for plotting
+df <- data.frame(
+  CellType = cell_types,
+  AvgRNA = avg_rna,
+  AvgCITE = avg_cite
+)
+
+# Linear model to get R² value
+model <- lm(AvgCITE ~ AvgRNA, data = df)
+r_squared <- summary(model)$r.squared
+
+# Plot using ggplot2
+p <- ggplot(df, aes(x = AvgRNA, y = AvgCITE, color = CellType)) +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, color = "darkgray", fill = "gray80", alpha = 0.4) +
+  geom_point(size = 3) +
+  labs(
+    title = paste("RNA vs CITE Correlation\nR² = ", round(r_squared, 3)),
+    x = "Average RNA Expression",
+    y = "Average CITE Expression"
+  ) +
+  scale_color_manual(values = scales::brewer_pal(palette = "Set3")(length(cell_types))) + # Prettier, toned-down colors
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    panel.grid.major = element_line(color = "grey90"),
+    panel.grid.minor = element_line(color = "grey95"),
+    legend.position = "right" # Legend for cell types
+  )
+
+# Save the plot with a white background
+ggsave('figures/03-6_correlation_plot_all.png', plot = p, width = 6, height = 5, scale = 1, bg = "white")
+
+
+
+# Load necessary libraries
+library(ggplot2)
+library(ggrepel)
+
+# Assuming meta_data, rna_data, and cite_data have been loaded as before
+meta_data <- dt@meta.data
+rna_data <- GetAssayData(dt, assay = "RNA", slot = "data")
+cite_data <- GetAssayData(dt, assay = "CITE", slot = "data")
+
+# Get unique cell types
+cell_types <- unique(meta_data$celltype.l1)
+
+# Initialize lists to hold average expressions
+avg_rna <- numeric(length(cell_types))
+avg_cite <- numeric(length(cell_types))
+
+# Calculate average expression per cell type
+for (i in seq_along(cell_types)) {
+  # Get cells of the current cell type
+  cell_type <- cell_types[i]
+  cells <- which(meta_data$celltype.l1 == cell_type)
+  
+  # Calculate average RNA expression
+  avg_rna[i] <- mean(colMeans(rna_data[, cells]))
+  
+  # Calculate average CITE expression
+  avg_cite[i] <- mean(colMeans(cite_data[, cells]))
+}
+
+# Create a data frame for plotting
+df <- data.frame(
+  CellType = cell_types,
+  AvgRNA = avg_rna,
+  AvgCITE = avg_cite
+)
+
+# Linear model to get R² value
+model <- lm(AvgCITE ~ AvgRNA, data = df)
+r_squared <- summary(model)$r.squared
+
+# Extend the custom color palette to include enough colors
+custom_colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", 
+                   "#e6ab02", "#a6761d", "#666666", "#8c564b", "#2ca02c", 
+                   "#ff7f0e", "#9467bd", "#17becf")  # 13 colors
+
+# Plot using ggplot2
+p <- ggplot(df, aes(x = AvgRNA, y = AvgCITE, color = CellType)) +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, color = "darkgray", fill = "gray80", alpha = 0.4) +
+  geom_point(size = 3) +
+  labs(
+    title = "RNA vs CITE Correlation",
+    x = "Average RNA Expression",
+    y = "Average CITE Expression"
+  ) +
+  scale_color_manual(values = custom_colors) + # Use the custom color palette
+  annotate("text", x = Inf, y = Inf, label = paste("R² = ", round(r_squared, 3)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") + # Add R² value to plot
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    panel.grid.major = element_line(color = "grey90"),
+    panel.grid.minor = element_line(color = "grey95"),
+    legend.position = "right" # Legend for cell types
+  )
+
+# Save the plot with a white background
+ggsave('figures/03-6_correlation_plot_all.png', plot = p, width = 6, height = 5, scale = 1, bg = "white")
+
+
+
+
+
+
+
+
+## 0829 ##############################################################################################
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load necessary libraries
+library(ggplot2)
+library(ggrepel)
+library(dplyr)
+library(Seurat)
+
+dt <- readRDS('rds/03-1.rds')
+save <- dt
+dt <- save
+
+# Access the metadata
+metadata <- dt@meta.data
+
+# Initialize celltype.l0 if it does not exist
+if (!"celltype.l0" %in% colnames(metadata)) {
+  metadata$celltype.l0 <- NA  # or initialize with a default value like `metadata$celltype.l1`
+}
+
+# Update celltype.l0 based on celltype.l1 conditions
+metadata$celltype.l0 <- ifelse(metadata$celltype.l1 %in% c("CD4+ T", "CD8+ T", "gdT", "MAIT", "Treg", "NKT"), "T",
+                        ifelse(metadata$celltype.l1 %in% c("CD14 Mono", "CD16 Mono"), "Mono",
+                        ifelse(metadata$celltype.l1 == "NK", "NK",
+                        ifelse(metadata$celltype.l1 == "Plasma", "Plasma",
+                        ifelse(metadata$celltype.l1 == "B", "B",
+                        ifelse(metadata$celltype.l1 %in% c("pDC", "cDC"), "DC", metadata$celltype.l0))))))
+
+# Update the Seurat object with the modified metadata
+dt@meta.data <- metadata
+table(dt$celltype.l0)
+
+# Assuming meta_data, rna_data, and cite_data have been loaded as before
+# Idents(dt) <- "seurat_clusters"
+meta_data <- dt@meta.data
+rna_data <- GetAssayData(dt, assay = "RNA", slot = "data")
+cite_data <- GetAssayData(dt, assay = "CITE", slot = "data")
+
+# Get unique cell types
+cell_types <- unique(meta_data$celltype.l0)
+
+# Initialize lists to hold average expressions
+avg_rna <- numeric(length(cell_types))
+avg_cite <- numeric(length(cell_types))
+
+# Calculate average expression per cell type
+for (i in seq_along(cell_types)) {
+  # Get cells of the current cell type
+  cell_type <- cell_types[i]
+  cells <- which(meta_data$celltype.l0 == cell_type)
+  
+  # Calculate average RNA expression
+  avg_rna[i] <- mean(colMeans(rna_data[, cells]))
+  
+  # Calculate average CITE expression
+  avg_cite[i] <- mean(colMeans(cite_data[, cells]))
+}
+
+# Create a data frame for plotting
+df <- data.frame(
+  CellType = cell_types,
+  AvgRNA = avg_rna,
+  AvgCITE = avg_cite
+)
+
+# Linear model to get R² value
+model <- lm(AvgCITE ~ AvgRNA, data = df)
+r_squared <- summary(model)$r.squared
+
+# Extend the custom color palette to include enough colors
+custom_colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", 
+                   "#e6ab02", "#a6761d", "#666666", "#8c564b", "#2ca02c", 
+                   "#ff7f0e", "#9467bd", "#17becf")  # 13 colors
+
+# Plot using ggplot2
+p <- ggplot(df, aes(x = AvgRNA, y = AvgCITE, color = CellType)) +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, color = "darkgray", fill = "gray80", alpha = 0.4) +
+  geom_point(size = 3) +
+  labs(
+    title = "RNA vs CITE Correlation",
+    x = "Average RNA Expression",
+    y = "Average CITE Expression"
+  ) +
+  scale_color_manual(values = custom_colors) + # Use the custom color palette
+  annotate("text", x = Inf, y = Inf, label = paste("R² = ", round(r_squared, 3)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") + # Add R² value to plot
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    panel.grid.major = element_line(color = "grey90"),
+    panel.grid.minor = element_line(color = "grey95"),
+    legend.position = "right" # Legend for cell types
+  )
+
+# Save the plot with a white background
+ggsave('figures/03-6_correlation_plot_general.png', plot = p, width = 6, height = 5, scale = 1, bg = "white")
+
+
+
+
+#########foldchange ###############################################################################################
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load necessary libraries
+library(ggplot2)
+library(ggrepel)
+library(dplyr)
+library(Seurat)
+
+dt <- readRDS('rds/03-1.rds')
+save <- dt
+dt <- save
+
+# Access the metadata
+metadata <- dt@meta.data
+
+# Initialize celltype.l0 if it does not exist
+if (!"celltype.l0" %in% colnames(metadata)) {
+  metadata$celltype.l0 <- NA  # or initialize with a default value like `metadata$celltype.l1`
+}
+
+# Update celltype.l0 based on celltype.l1 conditions
+metadata$celltype.l0 <- ifelse(metadata$celltype.l1 %in% c("CD4+ T", "CD8+ T", "gdT", "MAIT", "Treg", "NKT"), "T",
+                        ifelse(metadata$celltype.l1 %in% c("CD14 Mono", "CD16 Mono"), "Mono",
+                        ifelse(metadata$celltype.l1 == "NK", "NK",
+                        ifelse(metadata$celltype.l1 == "Plasma", "Plasma",
+                        ifelse(metadata$celltype.l1 == "B", "B",
+                        ifelse(metadata$celltype.l1 %in% c("pDC", "cDC"), "DC", metadata$celltype.l0))))))
+
+# Update the Seurat object with the modified metadata
+dt@meta.data <- metadata
+table(dt$celltype.l0)
+
+# Assuming meta_data, rna_data, and cite_data have been loaded as before
+# Idents(dt) <- "seurat_clusters"
+meta_data <- dt@meta.data
+rna_data <- GetAssayData(dt, assay = "RNA", slot = "data")
+cite_data <- GetAssayData(dt, assay = "CITE", slot = "data")
+
+# Log2 fold change normalization
+rna_data <- log2(rna_data + 1)
+cite_data <- log2(cite_data + 1)
+
+# Get unique cell types
+cell_types <- unique(meta_data$celltype.l0)
+
+# Initialize lists to hold average expressions
+avg_rna <- numeric(length(cell_types))
+avg_cite <- numeric(length(cell_types))
+
+# Calculate average expression per cell type
+for (i in seq_along(cell_types)) {
+  # Get cells of the current cell type
+  cell_type <- cell_types[i]
+  cells <- which(meta_data$celltype.l0 == cell_type)
+  
+  # Calculate average RNA expression
+  avg_rna[i] <- mean(colMeans(rna_data[, cells]))
+  
+  # Calculate average CITE expression
+  avg_cite[i] <- mean(colMeans(cite_data[, cells]))
+}
+
+# Create a data frame for plotting
+df <- data.frame(
+  CellType = cell_types,
+  AvgRNA = avg_rna,
+  AvgCITE = avg_cite
+)
+
+# Linear model to get R² value
+model <- lm(AvgCITE ~ AvgRNA, data = df)
+r_squared <- summary(model)$r.squared
+
+# Extend the custom color palette to include enough colors
+custom_colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", 
+                   "#e6ab02", "#a6761d", "#666666", "#8c564b", "#2ca02c", 
+                   "#ff7f0e", "#9467bd", "#17becf")  # 13 colors
+
+# Plot using ggplot2
+p <- ggplot(df, aes(x = AvgRNA, y = AvgCITE, color = CellType)) +
+  geom_smooth(method = "lm", formula = y ~ x, se = TRUE, color = "darkgray", fill = "gray80", alpha = 0.4) +
+  geom_point(size = 3) +
+  labs(
+    title = "RNA vs CITE Correlation",
+    x = "Average RNA Expression",
+    y = "Average CITE Expression"
+  ) +
+  scale_color_manual(values = custom_colors) + # Use the custom color palette
+  annotate("text", x = Inf, y = Inf, label = paste("R² = ", round(r_squared, 3)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") + # Add R² value to plot
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    panel.grid.major = element_line(color = "grey90"),
+    panel.grid.minor = element_line(color = "grey95"),
+    legend.position = "right" # Legend for cell types
+  )
+
+# Save the plot with a white background
+ggsave('figures/03-6_correlation_plot_general.png', plot = p, width = 6, height = 5, scale = 1, bg = "white")
+
+
+## 0904 ----------------------------------------------------------------------------------
+library(Seurat)
+library(ggplot2)
+
+# markers
+marker_1 <- c('CTLA4')
+marker_2 <- c('Hu.CD152')
+
+# Assuming 'dt' is your Seurat object
+# Extract marker expressions
+marker_1_expr <- FetchData(dt, vars = c(marker_1), layer = "data", assay = "RNA")
+marker_2_expr <- FetchData(dt, vars = c(marker_2), layer = "data", assay = "CITE")
+
+# Add these expressions to the meta data for easy grouping
+dt@meta.data$marker_1_expr <- marker_1_expr
+dt@meta.data$marker_2_expr <- marker_2_expr
+
+# Modify the celltype.l1 column in the Seurat object's metadata
+dt@meta.data$celltype.l1 <- dt@meta.data$celltype.l1 %>%
+  recode(
+    `CD4+ T` = 'T',
+    `Treg` = 'T',
+    `CD8+ T` = 'T',
+    `MAIT` = 'T',
+    `gdT` = 'T',
+    `NKT` = 'T'
+  )
+
+# Verify the changes
+table(dt@meta.data$celltype.l1)
+
+# Extract cell type information
+celltypes <- dt@meta.data$celltype.l1
+
+# Create a data frame for plotting
+plot_data <- data.frame(
+  CellType = celltypes,
+  Marker1 = dt@meta.data$marker_1_expr,
+  Marker2 = dt@meta.data$marker_2_expr
+)
+
+colnames(plot_data) <- c('CellType','Marker1','Marker2')
+
+# Define the desired order of cell types
+celltype_order <- c('T','NK',
+                    'CD14 Mono','CD16 Mono','cDC','pDC','B','Plasma')
+
+# Calculate average expression for each cell type
+avg_expr <- plot_data %>%
+  group_by(CellType) %>%
+  summarise(
+    Avg_Marker1 = mean(Marker1, na.rm = TRUE),
+    Avg_Marker2 = mean(Marker2, na.rm = TRUE)
+  )
+
+# Set the factor levels to the desired cell type order
+avg_expr$CellType <- factor(avg_expr$CellType, levels = celltype_order)
+
+# Calculate R² value for the correlation
+correlation <- cor(avg_expr$Avg_Marker1, avg_expr$Avg_Marker2)
+r_squared <- correlation^2
+
+# Plot with different colors for each cell type and a legend, respecting the order
+ggplot(avg_expr, aes(x = Avg_Marker2, y = Avg_Marker1, color = CellType)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", color = "black", se = FALSE) + # Black regression line
+  labs(
+    title = "Correlation of Average Marker Expression by Cell Type",
+    x = paste("Average", marker_2),
+    y = paste("Average", marker_1),
+    color = "Cell Type" # Legend title
+  ) +
+  scale_color_manual(values = scales::hue_pal()(length(celltype_order))) + # Generates distinct colors for each cell type
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_text(size = 12)
+  ) +
+  annotate(
+    "text", 
+    x = Inf, y = Inf, 
+    label = paste("R² =", round(r_squared, 3)), 
+    hjust = 1.1, vjust = 2, 
+    size = 5, color = "black"
+  )
+
+# Print or save the plots
+ggsave('figures/03-6_correlation_plot_general.png', width = 6, height = 5, scale = 1, bg = "white")

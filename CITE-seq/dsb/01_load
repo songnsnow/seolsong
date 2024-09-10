@@ -1,0 +1,86 @@
+library(dsb)
+# 1. Load RNA and ADT data and define droplet quality control metadata
+
+# pool 1 ----------------------------------------------------------------------------------------------
+pool <- 'p1'
+
+# read raw data using the Seurat function "Read10X" 
+raw = Seurat::Read10X("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s1/outs/multi/count/raw_feature_bc_matrix")
+cells = Seurat::Read10X("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s1/outs/per_sample_outs/mrcc_s1/count/sample_filtered_feature_bc_matrix")
+
+# define cell-containing barcodes and separate cells and empty drops
+stained_cells = colnames(cells$`Gene Expression`)
+background = setdiff(colnames(raw$`Gene Expression`), stained_cells)
+
+# split the data into separate matrices for RNA and ADT
+prot = raw$`Antibody Capture`
+rna = raw$`Gene Expression`
+
+# create metadata of droplet QC stats used in standard scRNAseq processing
+mtgene = grep(pattern = "^MT-", rownames(rna), value = TRUE) # used below
+
+md = data.frame(
+  rna.size = log10(Matrix::colSums(rna)), 
+  prot.size = log10(Matrix::colSums(prot)), 
+  n.gene = Matrix::colSums(rna > 0), 
+  mt.prop = Matrix::colSums(rna[mtgene, ]) / Matrix::colSums(rna)
+)
+# add indicator for barcodes Cell Ranger called as cells
+md$drop.class = ifelse(rownames(md) %in% stained_cells, 'cell', 'background')
+
+# remove barcodes with no evidence of capture in the experiment
+md = md[md$rna.size > 0 & md$prot.size > 0, ]
+
+
+
+# pool 2 ----------------------------------------------------------------------------------------------
+pool <- 'p2'
+
+raw = Seurat::Read10X("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s2/outs/multi/count/raw_feature_bc_matrix")
+cells = Seurat::Read10X("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s2/outs/per_sample_outs/mrcc_s2/count/sample_filtered_feature_bc_matrix")
+
+stained_cells = colnames(cells$`Gene Expression`)
+background = setdiff(colnames(raw$`Gene Expression`), stained_cells)
+
+prot = raw$`Antibody Capture`
+rna = raw$`Gene Expression`
+
+mtgene = grep(pattern = "^MT-", rownames(rna), value = TRUE) # used below
+
+md = data.frame(
+  rna.size = log10(Matrix::colSums(rna)), 
+  prot.size = log10(Matrix::colSums(prot)), 
+  n.gene = Matrix::colSums(rna > 0), 
+  mt.prop = Matrix::colSums(rna[mtgene, ]) / Matrix::colSums(rna)
+)
+md$drop.class = ifelse(rownames(md) %in% stained_cells, 'cell', 'background')
+
+md = md[md$rna.size > 0 & md$prot.size > 0, ]
+
+
+
+
+
+# pool 3 -----------------------------------------------------------------------------------------------------------------------
+pool <- 'p3'
+
+raw = Seurat::Read10X("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s3/outs/multi/count/raw_feature_bc_matrix")
+cells = Seurat::Read10X("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s3/outs/per_sample_outs/mrcc_s3/count/sample_filtered_feature_bc_matrix")
+
+stained_cells = colnames(cells$`Gene Expression`)
+background = setdiff(colnames(raw$`Gene Expression`), stained_cells)
+
+prot = raw$`Antibody Capture`
+rna = raw$`Gene Expression`
+
+mtgene = grep(pattern = "^MT-", rownames(rna), value = TRUE) # used below
+
+md = data.frame(
+  rna.size = log10(Matrix::colSums(rna)), 
+  prot.size = log10(Matrix::colSums(prot)), 
+  n.gene = Matrix::colSums(rna > 0), 
+  mt.prop = Matrix::colSums(rna[mtgene, ]) / Matrix::colSums(rna)
+)
+md$drop.class = ifelse(rownames(md) %in% stained_cells, 'cell', 'background')
+
+md = md[md$rna.size > 0 & md$prot.size > 0, ]

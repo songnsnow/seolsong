@@ -1,0 +1,53 @@
+save <- cells.dsb.norm
+write.csv(save,paste('03_',pool,'_norm.csv',sep=''))
+
+cells.dsb.norm[1:5, 1:5]
+
+# Seurat workflow -----------------------------------------------------------
+# integrating with Seurat
+stopifnot(isTRUE(all.equal(rownames(cellmd), colnames(cell.adt.raw))))
+stopifnot(isTRUE(all.equal(rownames(cellmd), colnames(cell.rna.raw))))
+
+# create Seurat object note: min.cells is a gene filter, not a cell filter
+s = Seurat::CreateSeuratObject(counts = cell.rna.raw, 
+                               meta.data = cellmd,
+                               assay = "RNA", 
+                               min.cells = 20)
+
+# add dsb normalized matrix "cell.adt.dsb" to the "CITE" data (not counts!) slot
+s[["CITE"]] = Seurat::CreateAssayObject(data = cells.dsb.norm)
+
+
+
+# clustering cells based on dsb norm protein #######################
+# define proteins to use in clustering (non-isotype controls)
+rownames(cell.adt.raw)
+prots = rownames(s@assays$CITE@data)[1:130]
+
+# cluster and run umap 
+s = Seurat::FindNeighbors(object = s, dims = NULL,assay = 'CITE', 
+                          features = prots, k.param = 30, 
+                          verbose = FALSE)
+
+# direct graph clustering 
+s = Seurat::FindClusters(object = s, resolution = 1, 
+                         algorithm = 3, 
+                         graph.name = 'CITE_snn', 
+                         verbose = FALSE)
+# umap (optional)
+s = Seurat::RunUMAP(object = s, assay = "CITE", features = prots,
+                    seed.use = 1990, min.dist = 0.2, n.neighbors = 30,
+                    verbose = FALSE)
+
+DimPlot(s, reduction = "umap")
+ggsave(paste('figures/04_',pool,'_umap.png',sep=''),width=6, height=6, scale=2)
+
+
+# make results dataframe 
+d = cbind(s@meta.data, 
+          as.data.frame(t(s@assays$CITE@data))
+          # s@reductions$umap@cell.embeddings)
+          )
+write.csv(d,paste('04_',pool,'_results.csv',sep=''))
+
+saveRDS(s,paste('output/dsb_',pool,'.rds',sep=''))

@@ -1,0 +1,24 @@
+# install picard
+conda install -c bioconda picard
+
+# 2. RevertSam ----------------------------------------------------------------------------------
+picard RevertSam \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/01Aligned.sortedByCoord.out.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/02Unmapped.bam
+
+picard RevertSam \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/01Aligned.sortedByCoord.out.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/02Unmapped.bam
+
+picard RevertSam \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/01Aligned.sortedByCoord.out.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/02Unmapped.bam
+
+picard RevertSam \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/01Aligned.sortedByCoord.out.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/02Unmapped.bam
+
+picard RevertSam \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/01Aligned.sortedByCoord.out.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/02Unmapped.bam
+#--------------------------------------------------------------------------------------------

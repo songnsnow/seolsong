@@ -1,0 +1,36 @@
+# in env: picard
+
+picard MarkDuplicates \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/03MergeBam.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/04MarkDup.bam \
+    CREATE_INDEX=true \
+    VALIDATION_STRINGENCY=SILENT \
+    METRICS_FILE=/data/project/mRCC/analysis/bulk_vcf/outs/CKS/04Mark.metrics
+
+picard MarkDuplicates \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/03MergeBam.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/04MarkDup.bam \
+    CREATE_INDEX=true \
+    VALIDATION_STRINGENCY=SILENT \
+    METRICS_FILE=/data/project/mRCC/analysis/bulk_vcf/outs/KKH/04Mark.metrics
+
+picard MarkDuplicates \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/03MergeBam.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/04MarkDup.bam \
+    CREATE_INDEX=true \
+    VALIDATION_STRINGENCY=SILENT \
+    METRICS_FILE=/data/project/mRCC/analysis/bulk_vcf/outs/PJY/04Mark.metrics
+
+picard MarkDuplicates \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/03MergeBam.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/04MarkDup.bam \
+    CREATE_INDEX=true \
+    VALIDATION_STRINGENCY=SILENT \
+    METRICS_FILE=/data/project/mRCC/analysis/bulk_vcf/outs/PSY/04Mark.metrics
+
+picard MarkDuplicates \
+    I=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/03MergeBam.bam \
+    O=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/04MarkDup.bam \
+    CREATE_INDEX=true \
+    VALIDATION_STRINGENCY=SILENT \
+    METRICS_FILE=/data/project/mRCC/analysis/bulk_vcf/outs/YKH/04Mark.metrics

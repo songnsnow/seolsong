@@ -1,0 +1,43 @@
+#/usr/bin/env R conda vireo
+#-----------------------------------------------------------------------
+# description : vireo
+# author      : songnsnow
+# date        : 240322
+# notes       : 
+#-----------------------------------------------------------------------
+
+# for mRCC
+# CellSNP Pileup -------------------------------------------------------------------------------------------
+# count the number of alleles at each SNP in each droplet using cellSNP-lite
+singularity exec /data/project/mRCC_HWS/Demuxafy.sif cellsnp-lite \
+    -s /data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s1/outs/per_sample_outs/mrcc_s1/count/sample_alignments.bam \
+    -b /data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s1/outs/per_sample_outs/mrcc_s1/count/sample_filtered_feature_bc_matrix/barcodes.tsv.gz \
+    -O /data/project/mRCC_HWS/analysis/sc_demultiplex/vireo \
+    -R /data/project/mRCC_HWS/analysis/bulk_vcf/outs/mRCC.vcf \
+    -p 20 \
+    --minMAF 0.1 \
+    --minCOUNT 20 \
+    --gzip
+# ----------------------------------------------------------------------------------------------------------
+
+# not needed
+# singularity exec /data/project/RCC_HWS/Demuxafy.sif GTbarcode -i /data/project/RCC_HWS/SJ/GT_donors.vireo.vcf.gz -o $dir/GT_barcodes.tsv --randSeed 1
+
+# runs more efficiently when SNPs from the donor $VCF have been filtered for the SNPs identified by cellSNP-lite
+# Subset vcf
+singularity exec /data/project/RCC_PBMC_HWS/workflow/singlecell/vireo/Demuxafy.sif bgzip \
+-c /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/outs/RCC_2.vcf > /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/outs/RCC_2.vcf.gz
+singularity exec /data/project/RCC_PBMC_HWS/workflow/singlecell/vireo/Demuxafy.sif tabix \
+-p vcf /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/outs/RCC_2.vcf.gz
+
+singularity exec /data/project/RCC_PBMC_HWS/workflow/singlecell/vireo/Demuxafy.sif bcftools view /data/project/RCC_PBMC_HWS/workflow/bulk/vcf_extraction/outs/RCC_2.vcf.gz \
+-R /data/project/RCC_PBMC_HWS/workflow/singlecell/vireo/RCC_GEX_2/cellSNP.base.vcf.gz \
+-s CSK,HCK,KSB,KYE,LHJ,LHM,MYS \
+-Ov \
+-o /data/project/RCC_PBMC_HWS/workflow/singlecell/vireo/RCC_GEX_2/donor_subset.vcf
+
+singularity exec /data/project/RCC_PBMC_HWS/workflow/singlecell/vireo/Demuxafy.sif vireo \
+-c /data/project/RCC_PBMC_HWS/workflow/singlecell/vireo/RCC_GEX_2 \
+-d /data/project/RCC_PBMC_HWS/workflow/singlecell/vireo/RCC_GEX_2/donor_subset.vcf \
+-o /data/project/RCC_PBMC_HWS/workflow/singlecell/vireo/RCC_GEX_2 \
+-t GT

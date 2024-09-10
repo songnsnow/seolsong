@@ -1,0 +1,86 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : cleanup data
+# author      : songnsnow
+# date        : 240425
+# notes       : 
+#-----------------------------------------------------------------------
+
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_adt")   # set working directory
+getwd()     # check
+
+# load libraries
+library(Seurat)
+library(dplyr)
+library(SeuratData)
+library(ggplot2)
+library(patchwork)
+library(ragg)
+
+dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat/rds/05-4_50_2.rds')
+
+# clean up data ----------------------------------------------------------------------------------
+dt <- DietSeurat(dt, layers = NULL,
+  features = NULL,
+  assays = NULL,
+  dimreducs = NULL,
+  graphs = NULL,
+  misc = TRUE)
+dt
+
+colnames(dt@meta.data)
+columns.to.remove <- c('integrated.clusters','predicted.celltype.l1','predicted.celltype.l2','predicted.celltype.l3','seurat_clusters')
+for(i in columns.to.remove) {
+  dt[[i]] <- NULL
+}
+colnames(dt@meta.data)
+
+colnames(dt@meta.data)
+df <- dt@meta.data[,9:10]
+df$timepoint <- NULL
+
+for (i in 1:nrow(df)){
+  if (df[i,"id"] == 'RCC_A1'){
+    subgroup_2 <- 'uCN_Init'
+  }
+  else if (df[i,"id"] == 'RCC_A2'){
+    subgroup_2 <- 'uCN_Nivo/ipi_2'
+  }
+  else if (df[i,"id"] == 'RCC_B1'){
+    subgroup_2 <- 'uCN_Init'
+  }
+  else if (df[i,"id"] == 'RCC_B2'){
+    subgroup_2 <- 'uCN_CN'
+  }
+  else if (df[i,"id"] == 'RCC_B3'){
+    subgroup_2 <- 'uCN_Nivo/ipi_2'
+  }
+  else if (df[i,"id"] == 'RCC_C1'){
+    subgroup_2 <- 'dCN_Nivo/ipi_1'
+  }
+  else if (df[i,"id"] == 'RCC_C2'){
+    subgroup_2 <- 'dCN_Nivo_maint'
+  }
+  else if (df[i,"id"] == 'RCC_D1'){
+    subgroup_2 <- 'dCN_Nivo/ipi_1'
+  }
+  else if (df[i,"id"] == 'RCC_D2'){
+    subgroup_2 <- 'dCN_Nivo_maint'
+  }
+  else if (df[i,"id"] == 'RCC_E1'){
+    subgroup_2 <- 'dCN_Init'
+  }
+  else if (df[i,"id"] == 'RCC_E2'){
+    subgroup_2 <- 'dCN_Nivo/ipi_1'
+  }
+  else {
+    subgroup_2 <- 'NA'
+  }
+  df[i,'subgroup_2'] <- subgroup_2
+}
+
+df$id <- NULL
+dt <- AddMetaData(dt, metadata=df)
+colnames(dt@meta.data)
+
+saveRDS(dt,'rds/01_cleanup.rds')

@@ -1,0 +1,47 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : add tcr data
+# author      : songnsnow
+# date        : 240702
+# notes       : https://ucdavis-bioinformatics-training.github.io/2020-Advanced_Single_Cell_RNA_Seq/data_analysis/VDJ_Analysis_fixed
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# load packages
+library(Seurat)
+
+# load data
+dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/04-1_all.rds')
+
+
+
+# separate dt by batch & set rownames as orig.bc ----------
+dt_B1 <- subset(dt, subset = batch == "B1")
+dt_B2 <- subset(dt, subset = batch == "B2")
+dt_B3 <- subset(dt, subset = batch == "B3")
+
+rownames(dt_B1@meta.data) <- dt_B1$orig.bc
+rownames(dt_B2@meta.data) <- dt_B2$orig.bc
+rownames(dt_B3@meta.data) <- dt_B3$orig.bc
+
+# convert SeuratObject to SCE -----------------------------
+sce_1 <- Seurat::as.SingleCellExperiment(dt_B1)
+sce_2 <- Seurat::as.SingleCellExperiment(dt_B2)
+sce_3 <- Seurat::as.SingleCellExperiment(dt_B3)
+
+# add tcr data to each batch ------------------------------
+sce_1 <- combineExpression(combined.TCR, 
+                         sce_1, 
+                         cloneCall="gene", 
+                         group.by = "sample", 
+                         proportion = TRUE)
+
+#Define color palette 
+colorblind_vector <- hcl.colors(n=7, palette = "inferno", fixup = TRUE)
+
+plotUMAP(sce, colour_by = "cloneSize") +
+    scale_color_manual(values=rev(colorblind_vector[c(1,3,5,7)]))
+
+# merge sce of 3 batches ----------------------------------
+

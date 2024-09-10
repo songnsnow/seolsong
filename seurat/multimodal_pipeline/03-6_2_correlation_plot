@@ -1,0 +1,82 @@
+library(Seurat)
+library(ggplot2)
+
+dt <- readRDS('rds/03-1.rds')
+save <- dt
+
+# markers
+vector1 <- c(
+  "Hu.CD101", "Hu.CD103", "Hu.CD105-43A3", "Hu.CD107a", "Hu.CD112", "Hu.CD119", "Hu.CD11a", "Hu.CD11b", 
+  "Hu.CD11c", "Hu.CD122", "Hu.CD123", "Hu.CD124", "Hu.CD127", "Hu.CD13", "Hu.CD134", "Hu.CD137", "Hu.CD141", 
+  "Hu.CD146", "Hu.CD14-M5E2", "Hu.CD152", "Hu.CD154", "Hu.CD155", "Hu.CD158", "Hu.CD158b", "Hu.CD158e1", 
+  "Hu.CD16", "Hu.CD161", "Hu.CD163", "Hu.CD169", "Hu.CD18", "Hu.CD183", "Hu.CD185", "Hu.CD19", "Hu.CD194", 
+  "Hu.CD195", "Hu.CD196", "Hu.CD1c", "Hu.CD1d", "Hu.CD2", "Hu.CD20-2H7", "Hu.CD21", "Hu.CD22", "Hu.CD223", 
+  "Hu.CD224", "Hu.CD226-11A8", "Hu.CD23", "Hu.CD24", "Hu.CD244", "Hu.CD25", "Hu.CD26", "Hu.CD267", "Hu.CD268", 
+  "Hu.CD27", "Hu.CD270", "Hu.CD272", "Hu.CD274", "Hu.CD279", "Hu.CD28", "Hu.CD29", "Hu.CD303", "Hu.CD31", 
+  "Hu.CD314", "Hu.CD319", "Hu.CD32", "Hu.CD328", "Hu.CD33", "Hu.CD335", "Hu.CD35", "Hu.CD352", "Hu.CD36", 
+  "Hu.CD38-HIT2", "Hu.CD39", "Hu.CD3-UCHT1", "Hu.CD40", "Hu.CD41", "Hu.CD42b", "Hu.CD45RA", "Hu.CD47", "Hu.CD48", "Hu.CD49a", "Hu.CD49b", "Hu.CD49d", "Hu.CD4-RPA.T4", "Hu.CD5", 
+  "Hu.CD52", "Hu.CD54", "Hu.CD56", "Hu.CD57", "Hu.CD58", "Hu.CD62L", "Hu.CD62P", "Hu.CD64", "Hu.CD69", 
+  "Hu.CD7", "Hu.CD71", "Hu.CD73", "Hu.CD79b", "Hu.CD8", "Hu.CD81", "Hu.CD82", "Hu.CD83", "Hu.CD85j", 
+  "Hu.CD86", "Hu.CD88", "Hu.CD94", "Hu.CD95", "Hu.CD99", "Hu.CLEC12A", "Hu.CX3CR1", "Hu.FceRIa", "Hu.GPR56", 
+  "Hu.HLA.ABC", "Hu.HLA.DR", "Hu.HLA.E", "Hu.Ig.LightChain.k", "Hu.IgD", "Hu.IgM", 
+  "Hu.KLRG1", "Hu.LOX.1", "Hu.TIGIT", "HuMs.CD44", "HuMs.CD49f", "HuMs.integrin.b7", "HuMsRt.CD278"
+)
+vector2 <- c(
+  "CD101", "ITGAE", "ENG", "LAMP1", "NECTIN2", "IFNGR1", "ITGAL", "ITGAM", "ITGAX", "IL2RB", "IL3RA", 
+  "IL4R", "IL7R", "ANPEP", "TNFRSF4", "TNFRSF9", "THBD", "MCAM", "CD14", "CTLA4", "CD40LG", "PVR", 
+  "KIR2DL1", "KIR2DL3", "KIR3DL1", "FCGR3A", "KLRB1", "CD163", "SIGLEC1", "ITGB2", "CXCR3", "CXCR5", 
+  "CD19", "CCR4", "CCR5", "CCR6", "CD1C", "CD1D", "CD2", "MS4A1", "CR2", "CD22", "LAG3", "GGT1", 
+  "CD226", "FCER2", "CD24", "CD244", "IL2RA", "DPP4", "TNFRSF13B", "TNFRSF13C", "CD27", "TNFRSF14", 
+  "BTLA", "CD274", "PDCD1", "CD28", "ITGB1", "CLEC4C", "PECAM1", "KLRK1", "SLAMF7", "FCGR2A", 
+  "SIGLEC7", "CD33", "NCR1", "CR1", "SLAMF6", "CD36", "CD38", "ENTPD1", "CD3D", "CD40", "ITGA2B", 
+  "GP1BB", "PTPRC", "CD47", "CD48", "ITGA1", "ITGA2", "ITGA4", "CD4", "CD5", 
+  "CD52", "ICAM1", "NCAM1", "B3GAT1", "CD58", "SELL", "SELP", "FCGR1A", "CD69", "CD7", "TFRC", 
+  "NT5E", "CD79B", "CD8A", "CD81", "CD82", "CD83", "LILRB1", "CD86", "C5AR1", "KLRD1", "FAS", 
+  "CD99", "CLEC12A", "CX3CR1", "FCER1A", "ADGRG1", "HLA-A", "HLA-DRA", "HLA-E", "IGKC", "", 
+  "IGHD", "IGHM", "KLRG1", "OLR1", "TIGIT", "CD44", "ITGA6", "ITGB7", "ICOS"
+)
+
+
+# Step 1: Calculate average expression
+# Average CITE expression for each marker in vector1
+cite_markers <- vector1
+average_cite_expr <- colMeans(FetchData(dt, vars = cite_markers, layer = "data", assay = "CITE"))
+
+# Average RNA expression for each marker in vector2
+rna_markers <- vector2
+average_rna_expr <- colMeans(FetchData(dt, vars = rna_markers, layer = "data", assay = "RNA"))
+
+# Step 2: Merge the average expression data
+# Align the markers by row names and combine them
+expr_df <- data.frame(
+  RNA_Expression = average_rna_expr,
+  CITE_Expression = average_cite_expr
+)
+
+# Calculate the correlation and R² value
+correlation <- cor(expr_df$RNA_Expression, expr_df$CITE_Expression)
+r_squared <- correlation^2
+
+
+# Filter data based on R² threshold (if applicable per subset, otherwise use global threshold)
+if (r_squared < 0.5) {
+  # Filter out data points where R² is less than 0.7
+  expr_df <- expr_df[expr_df$RNA_Expression >= quantile(expr_df$RNA_Expression, 0.5) & 
+                      expr_df$CITE_Expression >= quantile(expr_df$CITE_Expression, 0.5), ]
+}
+
+
+# Step 3: Create the correlation plot
+ggplot(expr_df, aes(x = RNA_Expression, y = CITE_Expression)) +
+  geom_point(color = "#1b9e77") +  # Use a single color for all points
+  geom_smooth(method = 'lm', se = FALSE, color = "gray") +
+  labs(
+    title = "Correlation between CITE and RNA Expression",
+    x = "Average RNA Expression",
+    y = "Average CITE Expression"
+  ) +
+  theme_minimal() +
+  annotate("text", x = Inf, y = Inf, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  theme(legend.position = "none")  # Remove the legend
+ggsave('figures/03-6-2_correlation_plot.png', width = 6, height = 5, scale = 1, bg = "white")

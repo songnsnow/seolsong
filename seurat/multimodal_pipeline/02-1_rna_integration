@@ -1,0 +1,63 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : rna integration w/ harmony to remove batch effect
+# author      : songnsnow
+# date        : 240702
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# Load libraries
+library(Seurat)
+
+# load libraries
+# library(Seurat)
+# library(dplyr)
+# library(SeuratData)
+# library(ggplot2)
+# library(patchwork)
+# library(ragg)
+
+dt <- readRDS('rds/01-3.rds')
+
+# RNA processing & integration --------------------------------------------------------------------------------
+# Join layers
+DefaultAssay(dt) <- 'RNA'
+dt[["RNA"]] <- JoinLayers(dt[["RNA"]])
+dt[["RNA"]] <- split(dt[["RNA"]], f = dt$batch)
+
+# 1st processing
+dt <- NormalizeData(dt, normalization.method = 'LogNormalize', margin = 2, verbose=TRUE) %>%
+      FindVariableFeatures() %>%
+      ScaleData(assay='RNA', verbose=TRUE) %>%
+      RunPCA(npcs = 50, reduction.name = 'rna_pca', assay='RNA', verbose=TRUE) %>%
+      RunUMAP(dims = 1:50, reduction = "rna_pca", reduction.name = "rna_umap.unint", verbose=TRUE)
+
+DimPlot(dt, reduction = "rna_umap.unint", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/02-1_rna_unint.png',width=15, height=10,scale=1.5)
+
+# Harmony integration to remove batch effect
+dt <- IntegrateLayers(
+  object = dt,
+  method = HarmonyIntegration,
+  features = rownames(dt[["RNA"]]),
+  assay = 'RNA',
+  orig.reduction = "rna_pca",
+  new.reduction = 'rna_harm', 
+  verbose = T
+)
+
+# Re-join layers after integration
+dt[["RNA"]] <- JoinLayers(dt[["RNA"]])
+
+# Continue processing - dim:50, res:2
+dt <- FindNeighbors(dt, dims = 1:50, assay = 'RNA', reduction = "rna_harm")
+dt <- FindClusters(dt, resolution = 2, cluster.name = "rna_clst.int", graph.name = 'RNA_snn')
+dt <- RunUMAP(dt, dims = 1:50, assay = "RNA", reduction = "rna_harm", reduction.name = "rna_umap.int")
+
+# plotting
+DimPlot(dt, reduction = "rna_umap.int", group.by = c("id","donor","timepoint","batch","seurat_clusters"))
+ggsave('figures/02-1_rna_int.png',width=15, height=10,scale=1.5)
+
+saveRDS(dt, 'rds/02-1.rds')

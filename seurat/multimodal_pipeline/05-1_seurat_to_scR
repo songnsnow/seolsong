@@ -1,0 +1,138 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : add seuratobject metadata to vdj
+# author      : songnsnow
+# date        : 240703
+# notes       : 
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+# load packages
+library(Seurat)
+library(dplyr)
+
+# Data Processing ---------------------------------------------------------------------
+# load data
+# dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/03-1.T_cell.rds')
+dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/04-2.rds')
+vdj.1 <- read.csv("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s1/outs/per_sample_outs/mrcc_s1/vdj_t/filtered_contig_annotations.csv")
+vdj.2 <- read.csv("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s2/outs/per_sample_outs/mrcc_s2/vdj_t/filtered_contig_annotations.csv")
+vdj.3 <- read.csv("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s3/outs/per_sample_outs/mrcc_s3/vdj_t/filtered_contig_annotations.csv")
+
+# Function to filter and merge metadata
+merge_metadata <- function(vdj_data, seurat_data, batch_label) {
+  # Filter the Seurat metadata for the specific batch
+  seurat_meta <- seurat_data@meta.data %>% filter(batch == batch_label)
+  
+  # Select relevant columns from Seurat metadata
+  seurat_meta_selected <- seurat_meta %>% select(orig.bc, id, subgroup_2)
+  
+  # Merge the VDJ data with the filtered Seurat metadata
+  merged_data <- merge(vdj_data, seurat_meta_selected, by.x = "barcode", by.y = "orig.bc", all.x = TRUE)
+  
+  return(merged_data)
+}
+
+# Merge metadata for each batch
+vdj.1_merged <- merge_metadata(vdj.1, dt, "B1")
+vdj.2_merged <- merge_metadata(vdj.2, dt, "B2")
+vdj.3_merged <- merge_metadata(vdj.3, dt, "B3")
+
+# Check the merged data
+head(vdj.1_merged)
+head(vdj.2_merged)
+head(vdj.3_merged)
+
+# Bind the merged VDJ data frames by row
+vdj_merged <- bind_rows(vdj.1_merged, vdj.2_merged, vdj.3_merged)
+dim(vdj_merged)
+
+# Remove rows where id is NA
+vdj_merged <- vdj_merged %>% filter(!is.na(id))
+write.csv(vdj_merged, file = "/data/project/mRCC_HWS/analysis/sc_seurat_final/05/vdj_merged.csv", row.names = FALSE)
+
+# Split the combined VDJ data frame by subgroup_2
+vdj_list <- split(vdj_merged, vdj_merged$subgroup_2)
+
+# Create individual data frames for each subgroup_2 value
+list2env(vdj_list, envir = .GlobalEnv)
+
+# Check the resulting data frames
+lapply(vdj_list, head)
+names(vdj_list)
+# [1] "dCN_Init"       "dCN_Nivo_maint" "dCN_Nivo/ipi_1" "uCN_CN"        
+# [5] "uCN_Init"       "uCN_Nivo/ipi_2"
+
+
+# Define new names for the data frames
+new_names <- c("dCN_1", "dCN_3", "dCN_2", "uCN_2", "uCN_1", "uCN_3")  # Replace with your desired names
+
+# Rename the data frames in vdj_list
+names(vdj_list) <- new_names
+
+lapply(names(vdj_list), function(name) {
+  write.csv(vdj_list[[name]], file = paste0("/data/project/mRCC_HWS/analysis/sc_seurat_final/05/",name, ".csv"), row.names = FALSE)
+})
+
+
+# by batch separate ===========================================
+# load data
+# dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/03-1.T_cell.rds')
+dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/04-2.rds')
+vdj.1 <- read.csv("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s1/outs/per_sample_outs/mrcc_s1/vdj_t/filtered_contig_annotations.csv")
+vdj.2 <- read.csv("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s2/outs/per_sample_outs/mrcc_s2/vdj_t/filtered_contig_annotations.csv")
+vdj.3 <- read.csv("/data/project/mRCC_HWS/data/scRNA-seq/outs/mrcc_s3/outs/per_sample_outs/mrcc_s3/vdj_t/filtered_contig_annotations.csv")
+
+# Function to filter and merge metadata
+merge_metadata <- function(vdj_data, seurat_data, batch_label) {
+  # Filter the Seurat metadata for the specific batch
+  seurat_meta <- seurat_data@meta.data %>% filter(batch == batch_label)
+  
+  # Select relevant columns from Seurat metadata
+  seurat_meta_selected <- seurat_meta %>% select(orig.bc, id, subgroup_2, batch)
+  
+  # Merge the VDJ data with the filtered Seurat metadata
+  merged_data <- merge(vdj_data, seurat_meta_selected, by.x = "barcode", by.y = "orig.bc", all.x = TRUE)
+  
+  return(merged_data)
+}
+
+# Merge metadata for each batch
+vdj.1_merged <- merge_metadata(vdj.1, dt, "B1")
+vdj.2_merged <- merge_metadata(vdj.2, dt, "B2")
+vdj.3_merged <- merge_metadata(vdj.3, dt, "B3")
+
+# Check the merged data
+head(vdj.1_merged)
+head(vdj.2_merged)
+head(vdj.3_merged)
+
+# Bind the merged VDJ data frames by row
+vdj_merged <- bind_rows(vdj.1_merged, vdj.2_merged, vdj.3_merged)
+dim(vdj_merged)
+
+# Remove rows where id is NA
+vdj_merged <- vdj_merged %>% filter(!is.na(id))
+write.csv(vdj_merged, file = "/data/project/mRCC_HWS/analysis/sc_seurat_final/05/vdj_merged.csv", row.names = FALSE)
+
+# Split the combined VDJ data frame by batch
+vdj_list <- split(vdj_merged, vdj_merged$batch)
+
+# Create individual data frames for each subgroup_2 value
+list2env(vdj_list, envir = .GlobalEnv)
+
+# Check the resulting data frames
+lapply(vdj_list, head)
+names(vdj_list)
+# [1] "B1" "B2" "B3"
+
+# Define new names for the data frames
+new_names <- c("B1", "B2", "B3") 
+
+# Rename the data frames in vdj_list
+names(vdj_list) <- new_names
+
+lapply(names(vdj_list), function(name) {
+  write.csv(vdj_list[[name]], file = paste0("/data/project/mRCC_HWS/analysis/sc_seurat_final/05/",name, ".csv"), row.names = FALSE)
+})

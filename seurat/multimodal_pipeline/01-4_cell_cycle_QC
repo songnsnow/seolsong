@@ -1,0 +1,46 @@
+#/usr/bin/env R
+#-----------------------------------------------------------------------
+# description : Cell Cycle Scoring -> QC
+# author      : songnsnow
+# date        : 240703
+# notes       : https://satijalab.org/seurat/articles/cell_cycle_vignette
+#-----------------------------------------------------------------------
+setwd("/data/project/mRCC_HWS/analysis/sc_seurat_final")   # set working directory
+getwd()     # check
+
+library(Seurat)
+library(ggplot2)
+
+# Read in the expression matrix The first row is a header row, the first column is rownames
+exp.mat <- read.table(file = "/data/project/mRCC_HWS/data/cell_cycle_vignette_files/nestorawa_forcellcycle_expressionMatrix.txt",
+    header = TRUE, as.is = TRUE, row.names = 1)
+
+# A list of cell cycle markers, from Tirosh et al, 2015, is loaded with Seurat.  We can
+# segregate this list into markers of G2/M phase and markers of S phase
+s.genes <- cc.genes$s.genes
+g2m.genes <- cc.genes$g2m.genes
+
+# Load SeuratObject - after integration to join layers
+dt <- readRDS('/data/project/mRCC_HWS/analysis/sc_seurat_final/rds/02-1.rds')
+
+# Cell cycle scoring
+dt_score <- CellCycleScoring(dt, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+
+# view cell cycle scores and phase assignments
+head(dt_score[[]])
+
+# Visualize the distribution of cell cycle markers across
+fts <- c('MCM5', 'PCNA', 'TYMS', 'FEN1', 'MCM2', 'MCM4', 'RRM1', 'CDCA7')
+RidgePlot(dt_score, features = fts, ncol = 2)
+ggsave(filename = "figures/01-4_cell_cycle_ridgeplot.jpg", height = 12, width = 12, dpi=300)
+
+# Running a PCA on cell cycle genes reveals, unsurprisingly, that cells separate entirely by
+# phase
+dt_score <- RunPCA(dt_score, features = c(s.genes, g2m.genes))
+DimPlot(dt_score)
+ggsave(filename = "figures/01-4_cell_cycle_pca.jpg", height = 6, width = 6, dpi=300)
+
+plot <- DimPlot(dt_score) + theme(axis.title = element_text(size = 18), legend.text = element_text(size = 18)) +
+    guides(colour = guide_legend(override.aes = list(size = 10)))
+ggsave(filename = "figures/01-4_cell_cycle_vignette.jpg", height = 7, width = 12, plot = plot,
+    quality = 50)
